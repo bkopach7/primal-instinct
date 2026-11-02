@@ -868,7 +868,9 @@
   </script>
   <script type="module">
     try {
-      const THREE = await import('https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js');
+      const invite = new URLSearchParams(location.search).get('invite');
+      const moduleQuery = invite ? `?invite=${encodeURIComponent(invite)}` : '';
+      const THREE = await import(`/vendor/three.module.js${moduleQuery}`);
       const canvas = document.querySelector('#arena3D');
       const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
       renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.45));
