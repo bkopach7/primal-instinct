@@ -2,9 +2,9 @@
 
 A room-code arena fighter for 2–8 players. It runs in a browser and synchronizes players through a small Node.js server.
 
-## Offline single-file mode
+## Solo practice
 
-Open `index.html` directly in a browser (double-click it in File Explorer) to play an offline practice bout against three CPU fighters. The HTML contains its styles, artwork, and game code; it does not need an internet connection. Offline mode is for solo practice. Room-code multiplayer uses the server below.
+Select **Practice vs CPU** on the game page to start a focused 1-v-1 sparring match. The full 3D renderer loads from a browser CDN; opening `index.html` directly still works offline using the built-in fallback arena. Room-code multiplayer uses the server below.
 
 ## Start a room
 
@@ -18,7 +18,7 @@ If Windows asks whether Node.js can communicate on a network, allow it on privat
 
 ## Controls
 
-- **Keyboard:** WASD or arrow keys to move, J/Z for light, K/X for heavy, L/Space to guard, Shift to transform, E for Primal Drive.
+- **Keyboard:** WASD or arrow keys to move around your opponent, J/Z for light, K/X for heavy, L/Space to guard, Shift to transform, E for Primal Drive. Your fighter faces the nearest opponent automatically.
 - **Touch:** Use the on-screen stick and Light, Heavy, Guard, Shift, and Drive buttons.
 - Chain attacks quickly. A heavy strike at the end of a three-hit chain adds a chain finisher.
 - Land or take hits to build Beast meter. Shift at 35%; your meter drains while transformed. Primal Drive consumes 45 meter.
@@ -36,13 +36,13 @@ Rounds last three minutes. Fighters start with 100 health. KOs are worth one poi
 
 ## Combat and presentation
 
-Fighters accelerate, carry momentum, separate on contact, and recoil through knockback and hit-stun. Light and heavy attacks now have readable wind-up and recovery windows, with the three-hit heavy chain ending in a stronger finisher. The arena and articulated fighter animations are drawn in real time on the canvas, including beast silhouettes, slash trails, and impact sparks.
+Fighters accelerate, carry momentum, separate on contact, and recoil through knockback and hit-stun. Light and heavy attacks have readable wind-up and recovery windows, with the third heavy strike in a chain ending in a stronger finisher. The browser game uses a 3D over-the-shoulder arena with articulated fighters, Japanese night-market lighting, an arena floor, and distinct beast forms. The built-in canvas renderer is the offline fallback.
 
 ## Network scope
 
 When running the server locally, players on the same Wi-Fi can join through the host computer. When hosted on the internet, players can join from anywhere using the hosted invite link and room code.
 
-The arena uses a stylized 2.5D canvas view with a pulled-back shoulder camera. The fighters and visual treatment are original; this version does not use full 3D character models.
+The camera follows over the player's shoulder and keeps the closest opponent in front. Fighters and visual details are original, built from procedural low-poly 3D models.
 
 ## Hosted invite link
 
