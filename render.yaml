@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: primal-instinct
+    runtime: node
+    plan: free
+    healthCheckPath: /health
+    buildCommand: npm install --omit=dev
+    startCommand: npm start
+    envVars:
+      - key: PI_INVITE_TOKEN
+        generateValue: true
