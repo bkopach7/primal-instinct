@@ -465,13 +465,13 @@ function removeClient(client) {
 
 const server = http.createServer((request, response) => {
   const parsedUrl = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
-  if (parsedUrl.pathname === '/health') { response.writeHead(200, { 'Content-Type': 'text/plain' }); response.end('ok'); return; }
+  if (parsedUrl.pathname === '/health') { response.writeHead(200, { 'Content-Type': 'application/json' }); response.end(JSON.stringify({ ok: true, renderer: fs.existsSync(THREE_MODULE) })); return; }
   if (INVITE_TOKEN && parsedUrl.searchParams.get('invite') !== INVITE_TOKEN) { response.writeHead(404); response.end('Not found'); return; }
   if (parsedUrl.pathname === '/favicon.ico') { response.writeHead(204); response.end(); return; }
   if (request.method !== 'GET') { response.writeHead(405); response.end('Method not allowed'); return; }
   if (parsedUrl.pathname === '/vendor/three.module.js') {
     fs.readFile(THREE_MODULE, (error, content) => {
-      if (error) { response.writeHead(503, { 'Content-Type': 'text/plain; charset=utf-8' }); response.end('3D renderer is not installed'); return; }
+      if (error) { console.error(`Three.js module request failed: ${error.code}`); response.writeHead(503, { 'Content-Type': 'text/plain; charset=utf-8' }); response.end('3D renderer is not installed'); return; }
       response.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=86400' });
       response.end(content);
     });
