@@ -20,6 +20,8 @@
     @media(max-width:600px){.touch-actions{grid-template-columns:repeat(3,44px);grid-template-rows:repeat(2,44px);gap:5px}}
     @media(orientation:portrait) and (max-width:600px){.touch-actions{grid-template-columns:repeat(3,42px);grid-template-rows:repeat(2,42px)}}
     .style-label{margin-top:16px}
+    .practice-button{width:100%;margin-top:9px;border-color:#97704d;background:linear-gradient(115deg,#30251f,#20191b);color:#f3d4a5}.practice-note{font-size:9px;color:#aa9c90;text-align:center;margin:8px 0 0}
+    #arenaCanvas,#arena3D{z-index:0}#arena3D{position:absolute;inset:0;width:100%;height:100%;opacity:0;transition:opacity .55s;pointer-events:none}.three-ready #arena3D{opacity:1}.three-ready #arenaCanvas{opacity:0}
     .style-picker{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
     .style-option{min-height:51px;display:flex;align-items:center;gap:9px;text-align:left;padding:5px 9px;border:1px solid #493d3f;background:#171417;color:#d7c8ba;cursor:pointer;transition:background .15s,border-color .15s,transform .15s}
     .style-option:hover{transform:translateY(-1px);border-color:#8b7163}
@@ -77,6 +79,8 @@
             <button class="btn btn-primary" id="createRoom">Create a room</button>
             <button class="btn" id="showJoin">Join a room</button>
           </div>
+          <button class="btn practice-button" id="practiceBtn">Practice vs CPU</button>
+          <p class="practice-note">Solo practice starts right away. WASD moves, attacks lock onto the nearest fighter.</p>
           <div class="join-line hidden" id="joinLine">
             <input class="text-field room-input" id="roomCodeInput" maxlength="4" placeholder="CODE" aria-label="Room code">
             <button class="btn" id="joinRoom">Enter room</button>
@@ -117,6 +121,7 @@
 
   <section id="gameScreen" class="hidden" aria-label="Primal Instinct arena">
     <canvas class="arena" id="arenaCanvas"></canvas>
+    <canvas id="arena3D" aria-hidden="true"></canvas>
     <div class="game-vignette"></div>
     <div class="hud-top">
       <div class="hud-brand">Primal<span>Instinct</span></div>
@@ -131,7 +136,7 @@
       <div class="meter-wrap" id="meterWrap"><div class="meter-fill" id="meterFill"></div></div>
       <div class="meter-caption"><span>Beast meter</span><span id="meterText">0% · Shift at 35%</span></div>
     </div>
-    <div class="controls-hint"><b>WASD</b> move &nbsp; <b>J</b> light &nbsp; <b>K</b> heavy<br><b>L</b> guard &nbsp; <b>Shift</b> beast &nbsp; <b>E</b> primal drive</div>
+      <div class="controls-hint"><b>WASD</b> move around target &nbsp; <b>J</b> light &nbsp; <b>K</b> heavy<br><b>L</b> guard &nbsp; <b>Shift</b> beast &nbsp; <b>E</b> primal drive</div>
     <button class="sound-toggle" id="soundToggle">Sound: off</button>
     <div class="touch-controls" id="touchControls">
       <div class="stick-base" id="stickBase"><div class="stick-knob" id="stickKnob"></div></div>
@@ -246,6 +251,7 @@
     }
     function leaveRoom() {
       if (socket) { socket.close(); socket = null; }
+      offlineMode = false;
       roomCode = ''; selfId = ''; lobbyPlayers = []; players = [];
       visualPositions.clear(); lastSnapshotHP.clear(); visualActions.clear();
       setScreen('landing');
@@ -330,12 +336,14 @@
       return { id, name, style, color: style.color, x: 0, z: 0, vx: 0, vz: 0, stunUntil: 0, hitstopUntil: 0, facingX: 0, facingZ: 1, hp: 100, meter: 0, beast: false, score: 0, respawnAt: 0, lightAt: 0, heavyAt: 0, finisherAt: 0, comboAt: 0, comboStep: 0, attackComboStep: 0, moveX: 0, moveZ: 0, guard: false, action: null, actionAt: 0, actionUntil: 0, attackAt: 0, attackResolved: true, attackMove: '', message: '', messageUntil: 0, isBot, nextBrainAt: 0, nextActionAt: 0 };
     }
     function startOfflineMatch() {
+      myName = ($('#playerName').value || myName || 'Fighter').trim().slice(0, 16) || 'Fighter';
+      savePreference('pi-name', myName);
       offlineMode = true;
       roomCode = 'PRACTICE'; selfId = 'local-player'; hostId = selfId;
       const picked = offlineFighters.find((fighter) => fighter.id === selectedStyle) || offlineFighters[0];
       players = [makeOfflineFighter(selfId, myName, picked)];
-      const bots = offlineFighters.filter((fighter) => fighter.id !== picked.id);
-      ['Rook', 'Mika', 'Kaze'].forEach((name, index) => players.push(makeOfflineFighter(`cpu-${index}`, name, bots[index], true)));
+      const rival = offlineFighters.find((fighter) => fighter.id !== picked.id) || offlineFighters[1];
+      players.push(makeOfflineFighter('cpu-rival', 'Dojo Rival', rival, true));
       lobbyPlayers = players.map((p) => ({ id: p.id, name: p.name, color: p.color, style: p.style, host: p.id === selfId }));
       startOfflineRound();
     }
@@ -357,7 +365,7 @@
       offlineEndsAt = performance.now() + 180000; offlineLastStep = performance.now();
       $('#resultPanel').classList.add('hidden');
       setScreen('game'); updateHud();
-      $('#centerMessage').innerHTML = 'OFFLINE BOUT<small>Three CPU fighters · build meter · land the KO</small>';
+      $('#centerMessage').innerHTML = 'PRACTICE BOUT<small>One CPU rival · WASD move · J/K combo · Shift transforms · E primal drive</small>';
       $('#centerMessage').classList.remove('hidden');
       setTimeout(() => { if (!localPlayer()?.respawnAt) $('#centerMessage').classList.add('hidden'); }, 1800);
     }
@@ -481,14 +489,14 @@
           player.vz += (desiredZ - player.vz) * (approach || (1 - Math.exp(-7.5 * dt)));
           player.x += player.vx * dt; player.z += player.vz * dt;
         }
-        if (player.isBot && inputLength > .18 && canAct) {
-          const length = Math.max(1, inputLength);
-          if (player.moveX * player.facingX + player.moveZ * player.facingZ > -.22) {
-            player.facingX += (player.moveX / length - player.facingX) * Math.min(1, dt * 12);
-            player.facingZ += (player.moveZ / length - player.facingZ) * Math.min(1, dt * 12);
-            const facingLength = Math.hypot(player.facingX, player.facingZ) || 1;
-            player.facingX /= facingLength; player.facingZ /= facingLength;
-          }
+        const focus = offlineTarget(player, 99);
+        if (focus && canAct) {
+          const dx = (focus.player.x - player.x) / (focus.distance || 1);
+          const dz = (focus.player.z - player.z) / (focus.distance || 1);
+          player.facingX += (dx - player.facingX) * Math.min(1, dt * 15);
+          player.facingZ += (dz - player.facingZ) * Math.min(1, dt * 15);
+          const facingLength = Math.hypot(player.facingX, player.facingZ) || 1;
+          player.facingX /= facingLength; player.facingZ /= facingLength;
         }
       }
       for (let i = 0; i < players.length; i += 1) {
@@ -534,6 +542,7 @@
     function attack(move) { send('attack', { move }); playSound(move === 'heavy' ? 110 : 220, .08, 'triangle'); }
 
     $('#createRoom').addEventListener('click', () => connect({ type: 'create' }));
+    $('#practiceBtn').addEventListener('click', startOfflineMatch);
     $('#showJoin').addEventListener('click', () => { $('#joinLine').classList.toggle('hidden'); $('#roomCodeInput').focus(); });
     $('#joinRoom').addEventListener('click', () => {
       const code = $('#roomCodeInput').value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4);
@@ -820,7 +829,7 @@
       if (impactFlash > .005) { const flash = ctx.createRadialGradient(w * .5, h * .52, h * .05, w * .5, h * .52, h * .72); flash.addColorStop(0, 'rgba(255,226,174,' + impactFlash + ')'); flash.addColorStop(1, 'rgba(240,92,71,0)'); ctx.fillStyle = flash; ctx.fillRect(0, 0, w, h); impactFlash *= Math.exp(-5.5 * dt); }
     }
     function render(time) {
-      requestAnimationFrame(render); if (gameScreen.classList.contains('hidden')) return;
+      requestAnimationFrame(render); if (gameScreen.classList.contains('hidden') || window.__Primal3DActive) return;
       const w = innerWidth; const h = innerHeight; const dt = clamp((time - visualLastAt) / 1000, 0, .05); visualLastAt = time;
       ctx.setTransform(Math.min(devicePixelRatio || 1, 2), 0, 0, Math.min(devicePixelRatio || 1, 2), 0, 0); ctx.clearRect(0, 0, w, h);
       const blend = 1 - Math.exp(-dt * 19);
@@ -854,7 +863,263 @@
         oscillator.start(); oscillator.stop(audio.currentTime + duration);
       } catch { /* Audio is an optional flourish. */ }
     }
+    window.PrimalInstinct = { getPlayers: () => players, getSelfId: () => selfId };
     requestAnimationFrame(render);
+  </script>
+  <script type="module">
+    try {
+      const THREE = await import('https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js');
+      const canvas = document.querySelector('#arena3D');
+      const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
+      renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.45));
+      renderer.setSize(innerWidth, innerHeight, false);
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.16;
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x111520);
+      scene.fog = new THREE.FogExp2(0x111520, 0.027);
+      const world = new THREE.Group(); scene.add(world);
+      const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.08, 160);
+      camera.position.set(0, 3, 8);
+      const clock = new THREE.Clock();
+      const fighters = new Map();
+      const smoothed = new Map();
+      const impacts = [];
+      const previousHp = new Map();
+      const material = (color, roughness = 0.72, metalness = 0.03) => new THREE.MeshStandardMaterial({ color, roughness, metalness, flatShading: true });
+      const sphere = new THREE.SphereGeometry(1, 14, 10);
+      const smallSphere = new THREE.SphereGeometry(1, 10, 8);
+      const box = new THREE.BoxGeometry(1, 1, 1);
+      const postGeometry = new THREE.CylinderGeometry(.13, .18, 1, 8);
+      const coneGeometry = new THREE.ConeGeometry(.15, .48, 8);
+      const floorMat = material(0x292831, .92);
+      const tileMat = material(0x36323a, .88);
+      const redMat = material(0x9e382f, .68);
+      const goldMat = material(0xd6a85e, .45, .32);
+      const blackMat = material(0x17191e, .82, .08);
+      const neonRed = new THREE.MeshStandardMaterial({ color: 0xf25a42, emissive: 0x741b17, emissiveIntensity: 1.6, roughness: .45 });
+      const neonBlue = new THREE.MeshStandardMaterial({ color: 0x55c4d4, emissive: 0x135867, emissiveIntensity: 1.7, roughness: .5 });
+      scene.add(new THREE.HemisphereLight(0xa8bded, 0x27171b, 1.55));
+      const moonLight = new THREE.DirectionalLight(0xa8c5ff, 2.8);
+      moonLight.position.set(-7, 13, 6); moonLight.castShadow = true; moonLight.shadow.mapSize.set(1024, 1024);
+      moonLight.shadow.camera.left = -13; moonLight.shadow.camera.right = 13; moonLight.shadow.camera.top = 13; moonLight.shadow.camera.bottom = -13; moonLight.shadow.bias = -.0005;
+      scene.add(moonLight);
+      const warmLight = new THREE.PointLight(0xff744a, 36, 18, 1.8); warmLight.position.set(0, 5.2, 1.5); scene.add(warmLight);
+
+      function addMesh(parent, geometry, mat, pos, scale, cast = true) {
+        const mesh = new THREE.Mesh(geometry, mat); mesh.position.set(...pos); mesh.scale.set(...scale); mesh.castShadow = cast; mesh.receiveShadow = true; parent.add(mesh); return mesh;
+      }
+      function buildArena() {
+        addMesh(world, new THREE.PlaneGeometry(100, 100), floorMat, [0, -.14, 0], [1, 1, 1], false).rotation.x = -Math.PI / 2;
+        addMesh(world, box, material(0x25232d, .82, .12), [0, -.03, 0], [16.2, .18, 16.2]);
+        addMesh(world, new THREE.PlaneGeometry(15.8, 15.8), tileMat, [0, .068, 0], [1, 1, 1], false).rotation.x = -Math.PI / 2;
+        const gridPoints = [];
+        for (let i = -7; i <= 7; i += 1) { gridPoints.push(-7, .081, i, 7, .081, i, i, .081, -7, i, .081, 7); }
+        const gridGeo = new THREE.BufferGeometry(); gridGeo.setAttribute('position', new THREE.Float32BufferAttribute(gridPoints, 3));
+        world.add(new THREE.LineSegments(gridGeo, new THREE.LineBasicMaterial({ color: 0x67616a, transparent: true, opacity: .22 })));
+        for (const [x, z, sx, sz] of [[0, -7.86, 16, .08], [0, 7.86, 16, .08], [-7.86, 0, .08, 16], [7.86, 0, .08, 16]]) {
+          addMesh(world, box, neonRed, [x, .08, z], [sx, .06, sz], false);
+        }
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(5.6, .025, 5, 120), goldMat); ring.rotation.x = Math.PI / 2; ring.position.y = .09; world.add(ring);
+        for (const side of [-1, 1]) {
+          for (let i = -1; i <= 1; i += 1) {
+            const x = side * 7.28; const z = i * 3.4;
+            addMesh(world, box, blackMat, [x, .68, z], [.34, 1.36, .34]);
+            addMesh(world, box, neonBlue, [x - side * .18, .72, z], [.035, .72, .18], false);
+          }
+          for (const z of [-7.1, 7.1]) addMesh(world, box, goldMat, [side * 7.25, .12, z], [.45, .18, .65]);
+        }
+        // Vermilion torii gate anchors the far side of the fighting floor.
+        for (const x of [-2.75, 2.75]) {
+          addMesh(world, postGeometry, redMat, [x, 2.1, 7.3], [.9, 4.2, .9]);
+          addMesh(world, box, goldMat, [x, .23, 7.3], [1.22, .24, 1.22]);
+        }
+        addMesh(world, box, redMat, [0, 4.2, 7.3], [7.7, .52, .78]);
+        addMesh(world, box, goldMat, [0, 3.82, 7.3], [6.55, .16, .8]);
+        addMesh(world, box, redMat, [0, 3.38, 7.3], [6.8, .24, .72]);
+        // Moon, layered city blocks, and lanterns give the stage readable depth.
+        addMesh(world, sphere, new THREE.MeshBasicMaterial({ color: 0xb94d43 }), [0, 10.5, 24], [4.4, 4.4, .28], false);
+        addMesh(world, sphere, new THREE.MeshBasicMaterial({ color: 0x922e35, transparent: true, opacity: .16, depthWrite: false }), [0, 10.5, 24.3], [6.2, 6.2, .18], false);
+        for (let i = 0; i < 24; i += 1) {
+          const x = (i - 11.5) * 2.1; const width = 1.1 + (i * 7 % 5) * .2; const height = 2.3 + (i * 13 % 7) * .46; const z = 18 + (i % 3) * 2;
+          addMesh(world, box, material(i % 3 ? 0x202431 : 0x28212a, .84), [x, height / 2 - .15, z], [width, height, 1.1], false);
+          for (let floor = 0; floor < Math.floor(height / 1.15); floor += 1) for (const dx of [-.27, .27]) {
+            addMesh(world, box, i % 4 === 0 ? neonRed : neonBlue, [x + dx, .58 + floor * 1.05, z - .57], [.12, .27, .025], false);
+          }
+        }
+        for (const x of [-9.1, 9.1]) for (const z of [-4.8, 0, 4.8]) {
+          const lantern = new THREE.Group(); lantern.position.set(x, 0, z); world.add(lantern);
+          addMesh(lantern, postGeometry, blackMat, [0, 1.18, 0], [.24, 2.36, .24]);
+          addMesh(lantern, box, redMat, [0, 2.5, 0], [.82, .7, .7]);
+          addMesh(lantern, box, new THREE.MeshStandardMaterial({ color: 0xffbf72, emissive: 0xff7138, emissiveIntensity: 2.2 }), [0, 2.5, .37], [.53, .44, .035], false);
+          addMesh(lantern, box, blackMat, [0, 2.93, 0], [1.02, .13, .88]);
+          const glow = new THREE.PointLight(0xff864d, 2.6, 5); glow.position.set(0, 2.6, .5); lantern.add(glow);
+        }
+        const bannerTexture = (glyph, color) => {
+          const c = document.createElement('canvas'); c.width = 128; c.height = 256; const g = c.getContext('2d');
+          g.fillStyle = '#16141b'; g.fillRect(0, 0, 128, 256); g.strokeStyle = color; g.lineWidth = 8; g.strokeRect(6, 6, 116, 244);
+          g.fillStyle = color; g.font = 'bold 104px serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(glyph, 64, 128);
+          const texture = new THREE.CanvasTexture(c); texture.colorSpace = THREE.SRGBColorSpace; return texture;
+        };
+        for (const [x, glyph, color] of [[-5.65, '牙', '#ed6648'], [5.65, '獣', '#64d1d3']]) {
+          addMesh(world, box, blackMat, [x, 3, 6.8], [.1, .7, .1]);
+          const sign = new THREE.Mesh(new THREE.PlaneGeometry(.8, 1.58), new THREE.MeshBasicMaterial({ map: bannerTexture(glyph, color), side: THREE.DoubleSide }));
+          sign.position.set(x, 2.45, 6.75); world.add(sign);
+        }
+      }
+      buildArena();
+
+      function limb(parent, x, y, geometry, mat, scale) {
+        const pivot = new THREE.Group(); pivot.position.set(x, y, 0); parent.add(pivot);
+        addMesh(pivot, geometry, mat, [0, -.23, 0], scale);
+        return pivot;
+      }
+      function makeFighter(player) {
+        const root = new THREE.Group(); world.add(root);
+        const style = player.style || {};
+        const accent = material(player.color || style.color || '#ed593c', .58, .12);
+        const accentDark = material(style.id === 'storm-tiger' ? 0x31201b : 0x35232a, .7);
+        const skin = material(0xd4a277, .84);
+        const fur = material(player.color || style.color || '#b9543b', .75);
+        const furLight = material(0xd7b284, .88);
+        const pants = material(0x303544, .78);
+        const cloth = material(0xe6d0ad, .68);
+        const glove = material(0x43343a, .63);
+        const eye = new THREE.MeshBasicMaterial({ color: 0xffd37f });
+        const group = new THREE.Group(); root.add(group);
+        const pelvis = addMesh(group, sphere, pants, [0, .66, 0], [.37, .31, .32]);
+        const torso = addMesh(group, sphere, accent, [0, 1.19, 0], [.48, .59, .34]);
+        addMesh(group, sphere, cloth, [0, .95, .285], [.24, .35, .075]);
+        addMesh(group, box, goldMat, [0, .78, .02], [.79, .105, .69]);
+        addMesh(group, box, accentDark, [0, .77, .39], [.31, .13, .055]);
+        const chestMark = addMesh(group, coneGeometry, goldMat, [.09, 1.35, .29], [.16, .22, .12]); chestMark.rotation.z = Math.PI;
+        const shoulderL = addMesh(group, sphere, accentDark, [-.43, 1.44, 0], [.23, .22, .34]);
+        const shoulderR = addMesh(group, sphere, accentDark, [.43, 1.44, 0], [.23, .22, .34]);
+        const armL = limb(group, -.49, 1.39, new THREE.CylinderGeometry(.16, .115, .5, 9), accent, [.98, 1, .98]);
+        const armR = limb(group, .49, 1.39, new THREE.CylinderGeometry(.16, .115, .5, 9), accent, [.98, 1, .98]);
+        const fistL = addMesh(armL, sphere, glove, [0, -.52, .045], [.17, .18, .18]);
+        const fistR = addMesh(armR, sphere, glove, [0, -.52, .045], [.17, .18, .18]);
+        addMesh(armL, box, goldMat, [0, -.36, .025], [.27, .11, .27]); addMesh(armR, box, goldMat, [0, -.36, .025], [.27, .11, .27]);
+        const legL = limb(group, -.2, .6, new THREE.CylinderGeometry(.2, .15, .56, 9), pants, [.9, 1, .95]);
+        const legR = limb(group, .2, .6, new THREE.CylinderGeometry(.2, .15, .56, 9), pants, [.9, 1, .95]);
+        addMesh(legL, sphere, pants, [0, -.43, .02], [.15, .25, .16]); addMesh(legR, sphere, pants, [0, -.43, .02], [.15, .25, .16]);
+        addMesh(legL, box, glove, [0, -.515, .13], [.32, .18, .48]); addMesh(legR, box, glove, [0, -.515, .13], [.32, .18, .48]);
+        const head = new THREE.Group(); head.position.set(0, 1.83, .015); group.add(head);
+        addMesh(head, sphere, skin, [0, 0, .025], [.29, .34, .26]);
+        addMesh(head, sphere, accentDark, [0, .17, -.015], [.31, .18, .28]);
+        addMesh(head, sphere, skin, [0, -.13, .14], [.19, .12, .16]);
+        for (const x of [-.115, .115]) addMesh(head, smallSphere, eye, [x, .015, .241], [.045, .027, .018], false);
+        const muzzle = addMesh(head, sphere, furLight, [0, -.07, .265], [.2, .13, .14]);
+        const nose = addMesh(head, smallSphere, accentDark, [0, -.005, .389], [.065, .045, .04]);
+        const ears = [];
+        for (const x of [-.19, .19]) { const ear = addMesh(head, coneGeometry, fur, [x, .27, -.01], [.8, 1.05, .72]); ear.rotation.z = x < 0 ? .22 : -.22; ears.push(ear); }
+        const animalEyes = [];
+        for (const x of [-.115, .115]) animalEyes.push(addMesh(head, smallSphere, eye, [x, .035, .245], [.05, .032, .02], false));
+        const tusks = [];
+        for (const x of [-.19, .19]) { const tusk = addMesh(head, coneGeometry, furLight, [x, -.16, .23], [.65, .72, .65]); tusk.rotation.z = x < 0 ? -.42 : .42; tusks.push(tusk); }
+        const stripes = [];
+        for (let i = -1; i <= 1; i += 1) {
+          const stripe = addMesh(head, box, accentDark, [i * .11, .12 + Math.abs(i) * .025, .247], [.035, .18, .022], false); stripe.rotation.z = i * .25; stripes.push(stripe);
+        }
+        const tail = new THREE.Group(); tail.position.set(0, .89, -.21); group.add(tail);
+        const tailBase = addMesh(tail, sphere, fur, [0, 0, -.38], [.17, .17, .53]); tailBase.rotation.x = -.18;
+        addMesh(tail, sphere, furLight, [0, -.02, -.76], [.19, .19, .23]);
+        const claws = [];
+        for (const x of [-.09, .09]) for (let i = 0; i < 3; i += 1) {
+          const claw = addMesh(i % 2 ? armL : armR, coneGeometry, furLight, [x, -.59, .19 + i * .025], [.34, .55, .32]);
+          claw.visible = false; claws.push(claw);
+        }
+        const barRoot = new THREE.Group(); barRoot.position.set(0, 2.38, 0); group.add(barRoot);
+        addMesh(barRoot, box, blackMat, [0, 0, 0], [1.06, .105, .05], false);
+        const bar = addMesh(barRoot, box, accent, [0, 0, .034], [.98, .055, .025], false);
+        const underBar = addMesh(barRoot, box, material(0x1a1720), [0, -.11, 0], [.7, .025, .025], false);
+        return { root, group, armL, armR, legL, legR, head, ears, animalEyes, tusks, stripes, claws, tail, tailBase, muzzle, nose, torso, pelvis, shoulderL, shoulderR, fistL, fistR, barRoot, bar, underBar, accent, style, species: style.beast || 'Wolf', previousAction: '', hitPulse: 0 };
+      }
+      function makeImpact(x, z, color) {
+        const group = new THREE.Group(); group.position.set(x, 1.1, z); world.add(group);
+        const flash = new THREE.Mesh(sphere, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: .94, depthWrite: false })); flash.scale.setScalar(.17); group.add(flash);
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(.34, .035, 5, 14), new THREE.MeshBasicMaterial({ color: 0xffe5aa, transparent: true, opacity: .95 })); group.add(ring);
+        impacts.push({ group, flash, ring, life: .27 });
+      }
+      function resize() { const w = innerWidth; const h = innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+      addEventListener('resize', resize);
+      let lastFrame = performance.now();
+      function animate(now) {
+        requestAnimationFrame(animate);
+        const dt = Math.min(.05, (now - lastFrame) / 1000); lastFrame = now;
+        if (document.querySelector('#gameScreen').classList.contains('hidden')) return;
+        const api = window.PrimalInstinct; if (!api) return;
+        const state = api.getPlayers(); const selfId = api.getSelfId();
+        for (const player of state) {
+          if (!fighters.has(player.id)) fighters.set(player.id, makeFighter(player));
+          let point = smoothed.get(player.id); if (!point) { point = { x: player.x, z: player.z }; smoothed.set(player.id, point); }
+          const blend = 1 - Math.exp(-dt * 18); point.x += (player.x - point.x) * blend; point.z += (player.z - point.z) * blend;
+          const model = fighters.get(player.id); const p = model.group; const alive = !player.respawnAt && player.hp > 0;
+          p.visible = alive;
+          if (!alive) continue;
+          p.position.set(point.x, 0, point.z);
+          const fx = player.facingX || 0; const fz = player.facingZ || 1;
+          p.rotation.y = Math.atan2(fx, fz);
+          const beast = !!player.beast; const action = player.action || '';
+          model.ears.forEach((part) => { part.visible = beast; }); model.tusks.forEach((part) => { part.visible = beast && model.species === 'Boar'; });
+          model.stripes.forEach((part) => { part.visible = beast && model.species === 'Tiger'; }); model.tail.visible = beast;
+          model.claws.forEach((part) => { part.visible = beast; });
+          model.muzzle.visible = beast; model.nose.visible = beast;
+          const speed = Math.hypot(player.vx || 0, player.vz || 0); const moving = Math.min(1, speed / 2.5); const stride = now * (.008 + moving * .006);
+          const phase = player.animAt ? Math.max(0, Math.min(1, (now - player.animAt) / Math.max(1, (player.animUntil || now + 1) - player.animAt))) : 0;
+          model.armL.rotation.set(0, 0, 0); model.armR.rotation.set(0, 0, 0); model.legL.rotation.x = Math.sin(stride) * .55 * moving; model.legR.rotation.x = -Math.sin(stride) * .55 * moving;
+          model.group.position.y = Math.abs(Math.sin(stride * 2)) * .055 * moving;
+          model.group.rotation.x = 0; model.group.rotation.z = 0;
+          model.tail.rotation.x = Math.sin(now * .004 + point.x) * .2; model.tail.rotation.y = Math.sin(now * .003 + point.z) * .28;
+          model.head.rotation.x = beast ? -.06 : 0;
+          if (player.guard) { model.armL.rotation.x = -1.05; model.armR.rotation.x = -1.12; model.armL.rotation.z = .5; model.armR.rotation.z = -.5; model.group.position.y -= .08; }
+          if (action === 'light' || action === 'beastLight') {
+            const swing = phase < .28 ? phase / .28 * .46 : phase < .62 ? .46 - (phase - .28) / .34 * 2.05 : -1.59 + (phase - .62) / .38 * 1.59;
+            model.armR.rotation.x = swing; model.armR.rotation.z = -.16; model.group.rotation.x = phase > .28 && phase < .66 ? -.12 : 0;
+          } else if (action === 'heavy' || action === 'beastHeavy') {
+            const swing = phase < .35 ? phase / .35 * 1.05 : phase < .65 ? 1.05 - (phase - .35) / .3 * 2.65 : -1.6 + (phase - .65) / .35 * 1.6;
+            model.armR.rotation.x = swing; model.armL.rotation.x = -.52; model.group.rotation.z = phase > .32 && phase < .7 ? -.23 : 0;
+          } else if (action === 'finisher') { model.armL.rotation.x = -.92; model.armR.rotation.x = -.98; model.armL.rotation.z = .46; model.armR.rotation.z = -.46; model.group.scale.setScalar(1 + Math.sin(phase * Math.PI) * .12); }
+          else if (action === 'hit') { model.group.rotation.x = .36; model.armL.rotation.x = .55; model.armR.rotation.x = .42; model.group.position.y = .02; }
+          else model.group.scale.setScalar(beast ? 1.06 : 1);
+          if (action !== 'finisher') model.group.scale.setScalar(beast ? 1.06 : 1);
+          model.barRoot.quaternion.copy(p.quaternion).invert().multiply(world.quaternion.clone().invert()).multiply(camera.quaternion);
+          model.bar.scale.x = .98 * Math.max(0, Math.min(1, player.hp / 100)); model.bar.position.x = -.49 + model.bar.scale.x / 2;
+          model.bar.material = model.accent;
+          model.underBar.material.color.set(beast ? 0xd34d3e : 0x1a1720);
+          const oldHp = previousHp.get(player.id); if (oldHp !== undefined && player.hp < oldHp - 1) makeImpact(point.x, point.z, player.color || '#ed593c');
+          previousHp.set(player.id, player.hp);
+        }
+        for (const [id, model] of fighters) if (!state.some((player) => player.id === id)) { world.remove(model.root); fighters.delete(id); smoothed.delete(id); previousHp.delete(id); }
+        const self = state.find((player) => player.id === selfId) || state[0];
+        if (self) {
+          const point = smoothed.get(self.id); const fx = self.facingX || 0; const fz = self.facingZ || 1;
+          const yaw = Math.atan2(fx, fz);
+          // Rotate and follow the whole arena around the locked target. Camera-space WASD stays intuitive.
+          world.rotation.y = -yaw;
+          world.position.set(-point.x * fz + point.z * fx, 0, -point.x * fx - point.z * fz);
+          camera.position.set(.78, 2.7, -4.35);
+          camera.lookAt(0, .92, 2.75);
+        }
+        for (let i = impacts.length - 1; i >= 0; i -= 1) {
+          const fx = impacts[i]; fx.life -= dt; const t = Math.max(0, fx.life / .27);
+          fx.flash.scale.setScalar(.18 + (1 - t) * .62); fx.material && (fx.material.opacity = t);
+          fx.ring.scale.setScalar(1 + (1 - t) * 1.65); fx.ring.material.opacity = t;
+          fx.flash.material.opacity = t;
+          if (fx.life <= 0) { world.remove(fx.group); fx.flash.geometry.dispose(); fx.flash.material.dispose(); fx.ring.geometry.dispose(); fx.ring.material.dispose(); impacts.splice(i, 1); }
+        }
+        renderer.render(scene, camera);
+      }
+      window.__Primal3DActive = true;
+      document.querySelector('#gameScreen').classList.add('three-ready');
+      requestAnimationFrame(animate);
+    } catch (error) {
+      console.warn('Primal Instinct 3D renderer unavailable; using the built-in arena renderer.', error);
+    }
   </script>
 </body>
 </html>
