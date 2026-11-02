@@ -83,11 +83,12 @@ function createPlayer(client, name, host, requestedStyle) {
   const angle = Math.random() * Math.PI * 2;
   const style = fighterStyle(requestedStyle);
   return {
-    id: id(), name: safeName(name), color: style.color, style,
+    id: id(), name: safeName(name), color: style.color, style, targetId: null,
     host, client, x: Math.cos(angle) * 2.4, z: Math.sin(angle) * 2.4,
     vx: 0, vz: 0, stunUntil: 0, hitstopUntil: 0,
     facingX: 0, facingZ: 1, hp: 100, meter: 0, beast: false, score: 0,
     respawnAt: 0, lightAt: 0, heavyAt: 0, finisherAt: 0,
+    launcherAt: 0, sweepAt: 0, evadeAt: 0, evadeUntil: 0, evadeCounterUntil: 0, evadeX: 0, evadeZ: 0, airUntil: 0,
     comboAt: 0, comboStep: 0, moveX: 0, moveZ: 0, guard: false,
     action: null, actionAt: 0, actionUntil: 0, attackAt: 0, attackResolved: true,
     attackMove: '', attackComboStep: 0, message: '', messageUntil: 0,
@@ -132,13 +133,18 @@ function startRound(room) {
     player.score = 0;
     player.respawnAt = 0;
     player.action = null; player.actionAt = 0; player.actionUntil = 0; player.attackAt = 0; player.attackResolved = true; player.attackComboStep = 0;
-    player.attackMove = ''; player.lightAt = 0; player.heavyAt = 0; player.finisherAt = 0; player.comboAt = 0; player.comboStep = 0;
+    player.attackMove = ''; player.lightAt = 0; player.heavyAt = 0; player.launcherAt = 0; player.sweepAt = 0; player.evadeAt = 0; player.evadeUntil = 0; player.evadeCounterUntil = 0; player.evadeX = 0; player.evadeZ = 0; player.airUntil = 0; player.finisherAt = 0; player.comboAt = 0; player.comboStep = 0;
     player.message = ''; player.messageUntil = 0;
     i += 1;
   }
 }
 
 function findTarget(room, attacker, range, frontOnly = true) {
+  const locked = attacker.targetId && room.players.get(attacker.targetId);
+  if (locked && locked.id !== attacker.id && locked.hp > 0 && !locked.respawnAt) {
+    const distance = Math.hypot(locked.x - attacker.x, locked.z - attacker.z);
+    if (distance < range) return { player: locked, distance };
+  }
   let target = null;
   let best = range;
   for (const candidate of room.players.values()) {
@@ -154,6 +160,12 @@ function findTarget(room, attacker, range, frontOnly = true) {
 }
 
 function applyHit(room, attacker, victim, damage, knockback, now) {
+  if (victim.evadeUntil > now) {
+    victim.message = 'PERFECT EVADE'; victim.messageUntil = now + 650;
+    victim.meter = Math.min(100, victim.meter + 7);
+    victim.evadeCounterUntil = now + 900;
+    return;
+  }
   const guarded = victim.guard && now >= victim.stunUntil;
   if (guarded) damage *= victim.style.guardDamage;
   if (victim.hp <= 0 || victim.respawnAt) return;
@@ -172,6 +184,7 @@ function applyHit(room, attacker, victim, damage, knockback, now) {
   victim.action = 'hit';
   victim.actionAt = now;
   victim.actionUntil = now + (guarded ? 170 : 390);
+  if (knockback >= 1.35 && !guarded) victim.airUntil = now + 760;
   if (victim.hp <= 0) {
     attacker.score += 1;
     victim.respawnAt = now + 1800;
@@ -185,47 +198,53 @@ function applyHit(room, attacker, victim, damage, knockback, now) {
 
 function doAttack(room, player, move, now) {
   const isLight = move === 'light';
-  const cooldown = isLight ? (player.beast ? 215 : 260) : (player.beast ? 430 : 520);
-  const last = isLight ? player.lightAt : player.heavyAt;
+  const cooldowns = { light: 245, heavy: 465, launcher: 650, sweep: 570 };
+  const cooldown = (cooldowns[move] || 300) * (player.beast ? 0.86 : 1);
+  const last = player[`${move}At`] || 0;
   if (now - last < cooldown || player.hp <= 0 || player.respawnAt) return;
-  if (isLight) player.lightAt = now; else player.heavyAt = now;
+  player[`${move}At`] = now;
 
-  if (now - player.comboAt > 1200) player.comboStep = 0;
+  if (now - player.comboAt > 900) player.comboStep = 0;
   const nextComboStep = player.comboStep + 1;
-  const finisherChain = !isLight && nextComboStep >= 3;
-  const target = findTarget(room, player, player.beast ? 4.1 : 3.5);
+  const finisherChain = move === 'heavy' && nextComboStep >= 3;
+  const target = findTarget(room, player, 99);
   if (target) {
     player.facingX = (target.player.x - player.x) / target.distance;
     player.facingZ = (target.player.z - player.z) / target.distance;
   }
-  const duration = isLight ? 350 : 560;
-  player.action = player.beast ? (isLight ? 'beastLight' : 'beastHeavy') : (isLight ? 'light' : 'heavy');
+  const timing = { light: [340, 94], heavy: [500, 175], launcher: [570, 210], sweep: [535, 195] }[move] || [400, 120];
+  player.action = player.beast ? (move === 'light' ? 'beastLight' : (move === 'heavy' ? 'beastHeavy' : move)) : move;
   player.actionAt = now;
-  player.actionUntil = now + duration;
-  player.attackAt = now + (isLight ? 105 : 190);
+  player.actionUntil = now + timing[0];
+  player.attackAt = now + timing[1];
   player.attackResolved = false;
-  player.attackMove = finisherChain ? 'finisher' : move;
+  player.attackMove = finisherChain ? 'breaker' : move;
   player.attackComboStep = nextComboStep;
-  const lunge = isLight ? 2.1 : 3.15;
+  const lunge = { light: 1.85, heavy: 2.45, launcher: 2.05, sweep: 1.65 }[move] || 1.8;
   player.vx += player.facingX * lunge;
   player.vz += player.facingZ * lunge;
 }
 
 function resolveAttack(room, player, now) {
   player.attackResolved = true;
-  const isLight = player.attackMove === 'light';
-  const finisherChain = player.attackMove === 'finisher';
-  const range = player.beast ? (isLight ? 3.65 : 4.15) : (isLight ? 3.15 : 3.7);
-  const target = findTarget(room, player, range);
+  const move = player.attackMove === 'breaker' ? 'heavy' : player.attackMove;
+  const isLight = move === 'light';
+  const finisherChain = player.attackMove === 'breaker';
+  const ranges = { light: 2.6, heavy: 3.05, launcher: 2.75, sweep: 2.55 };
+  const target = findTarget(room, player, (ranges[move] || 2.7) + (player.beast ? 0.35 : 0));
   if (!target) { player.message = 'WHIFF'; player.messageUntil = now + 450; return; }
   player.comboStep = player.attackComboStep;
   player.comboAt = now;
   player.facingX = (target.player.x - player.x) / target.distance;
   player.facingZ = (target.player.z - player.z) / target.distance;
-  const chainBonus = finisherChain ? player.style.chainPower : Math.min(3, (player.attackComboStep - 1) * 1.5);
-  const damage = ((isLight ? player.style.light : player.style.heavy) + chainBonus) * (player.beast ? player.style.beastPower : 1);
-  applyHit(room, player, target.player, damage, finisherChain ? 1.15 : (isLight ? 0.52 : 1.02), now);
-  player.message = finisherChain ? 'CHAIN FINISH!' : `${player.attackComboStep} HIT`;
+  const baseDamage = { light: player.style.light * 0.72, heavy: player.style.heavy * 0.76, launcher: 8.5, sweep: 8 }[move] || 7;
+  const airborne = target.player.airUntil > now;
+  const chainBonus = finisherChain ? player.style.chainPower * 0.72 : Math.min(3, (player.attackComboStep - 1) * 1.15);
+  const punish = player.evadeCounterUntil > now ? 1.3 : 1;
+  const damage = (baseDamage + chainBonus) * (player.beast ? player.style.beastPower : 1) * (airborne ? 0.82 : 1) * punish;
+  const force = finisherChain ? 1.45 : (move === 'launcher' ? 1.38 : (move === 'sweep' ? 1.23 : (isLight ? 0.52 : 1.02)));
+  applyHit(room, player, target.player, damage, force, now);
+  player.message = punish > 1 ? 'EVADE PUNISH!' : (finisherChain ? 'BEAST BREAKER!' : (airborne ? `AIR JUGGLE · ${player.attackComboStep}` : `${player.attackComboStep} HIT`));
   player.messageUntil = now + 700;
   if (player.attackComboStep >= 3) player.comboStep = 0;
 }
@@ -262,7 +281,21 @@ function action(client, message) {
     player.moveZ = Math.max(-1, Math.min(1, Number(message.z) || 0));
     player.guard = Boolean(message.guard);
   }
-  if (message.type === 'attack' && room.phase === 'playing') doAttack(room, player, message.move === 'heavy' ? 'heavy' : 'light', Date.now());
+  if (message.type === 'target' && room.phase === 'playing') {
+    const target = room.players.get(String(message.targetId || ''));
+    player.targetId = target && target.id !== player.id ? target.id : null;
+  }
+  if (message.type === 'attack' && room.phase === 'playing') doAttack(room, player, ['light', 'heavy', 'launcher', 'sweep'].includes(message.move) ? message.move : 'light', Date.now());
+  if (message.type === 'evade' && room.phase === 'playing' && !player.respawnAt) {
+    const now = Date.now();
+    if (now - player.evadeAt >= 820 && now >= player.stunUntil) {
+      player.evadeAt = now; player.evadeUntil = now + 190; player.evadeCounterUntil = now + 900;
+      player.action = 'evade'; player.actionAt = now; player.actionUntil = now + 340;
+      let dx = player.moveX; let dz = player.moveZ; const len = Math.hypot(dx, dz);
+      if (len < 0.12) { dx = player.facingZ; dz = -player.facingX; } else { dx /= len; dz /= len; }
+      player.evadeX = dx; player.evadeZ = dz;
+    }
+  }
   if (message.type === 'transform' && room.phase === 'playing' && !player.respawnAt) {
     if (player.beast) {
       player.beast = false;
@@ -324,20 +357,28 @@ function stepRoom(room, now) {
     const canAct = now >= player.stunUntil;
     const inRecovery = player.action && player.action !== 'hit' && now < player.actionUntil;
     const moveScale = player.guard ? 0.66 : (player.beast ? 1.22 : 1);
-    const actionScale = inRecovery ? 0.34 : 1;
+    const actionScale = inRecovery ? 0.44 : 1;
     const topSpeed = player.style.speed * moveScale * actionScale;
     const desiredX = canAct && inputLength > 0.06 ? player.moveX / inputLength * topSpeed : 0;
     const desiredZ = canAct && inputLength > 0.06 ? player.moveZ / inputLength * topSpeed : 0;
-    const acceleration = inputLength > 0.06 && canAct ? 24 : 0;
+    const acceleration = inputLength > 0.06 && canAct ? 30 : 0;
     const approach = Math.min(1, acceleration * dt);
-    if (now >= player.hitstopUntil) {
-      player.vx += (desiredX - player.vx) * (approach || (1 - Math.exp(-7.5 * dt)));
-      player.vz += (desiredZ - player.vz) * (approach || (1 - Math.exp(-7.5 * dt)));
+    if (now < player.actionUntil && player.action === 'evade') {
+      player.vx = player.evadeX * 4.6; player.vz = player.evadeZ * 4.6;
+      player.x += player.vx * dt; player.z += player.vz * dt;
+    } else if (now >= player.hitstopUntil) {
+      player.vx += (desiredX - player.vx) * (approach || (1 - Math.exp(-12 * dt)));
+      player.vz += (desiredZ - player.vz) * (approach || (1 - Math.exp(-12 * dt)));
       player.x += player.vx * dt;
       player.z += player.vz * dt;
     }
     let focus = null; let focusDistance = Infinity;
+    const locked = player.targetId && room.players.get(player.targetId);
+    if (locked && locked.id !== player.id && locked.hp > 0 && !locked.respawnAt) {
+      const dx = locked.x - player.x; const dz = locked.z - player.z; focus = { x: dx / (Math.hypot(dx, dz) || 1), z: dz / (Math.hypot(dx, dz) || 1) };
+    }
     for (const opponent of fighters) {
+      if (focus) break;
       if (opponent.id === player.id || opponent.hp <= 0 || opponent.respawnAt) continue;
       const dx = opponent.x - player.x; const dz = opponent.z - player.z; const distance = Math.hypot(dx, dz);
       if (distance < focusDistance) { focus = { x: dx / (distance || 1), z: dz / (distance || 1) }; focusDistance = distance; }
@@ -381,8 +422,10 @@ function snapshot(room, now) {
   const players = [...room.players.values()].map((player) => {
     return {
       id: player.id, name: player.name, color: player.color, style: player.style, x: player.x, z: player.z,
+      targetId: player.targetId,
       facingX: player.facingX, facingZ: player.facingZ, hp: player.hp, meter: player.meter,
       beast: player.beast, score: player.score, respawnAt: player.respawnAt,
+      airUntil: player.airUntil, evadeUntil: player.evadeUntil,
       guard: player.guard, action: player.actionUntil > now ? player.action : null,
       actionAt: player.actionAt, actionUntil: player.actionUntil, attackMove: player.attackMove,
       vx: player.vx, vz: player.vz, stunUntil: player.stunUntil,
