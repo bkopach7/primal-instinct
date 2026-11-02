@@ -36,7 +36,7 @@ Rounds last three minutes. Fighters start with 100 health. KOs are worth one poi
 
 ## Network scope
 
-This version supports devices on the same Wi-Fi through the host computer. Playing across separate networks needs a publicly reachable server.
+When running the server locally, players on the same Wi-Fi can join through the host computer. When hosted on the internet, players can join from anywhere using the hosted invite link and room code.
 
 The arena uses a stylized 2.5D canvas view with a pulled-back shoulder camera. The fighters and visual treatment are original; this version does not use full 3D character models.
 
