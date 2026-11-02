@@ -4,7 +4,7 @@ A room-code arena fighter for 2–8 players. It runs in a browser and synchroniz
 
 ## Solo practice
 
-Select **Practice vs CPU** on the game page to start a focused 1-v-1 sparring match. The full 3D renderer loads from a browser CDN; opening `index.html` directly still works offline using the built-in fallback arena. Room-code multiplayer uses the server below.
+Select **Practice vs CPU** on the game page to start a focused 1-v-1 sparring match. The hosted game serves its 3D renderer with the page; opening `index.html` directly still works offline using the built-in fallback arena. Room-code multiplayer uses the server below.
 
 ## Start a room
 
