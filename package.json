@@ -6,7 +6,11 @@
   "scripts": {
     "start": "node server.js"
   },
+  "dependencies": {
+    "three": "0.187.0"
+  },
   "engines": {
     "node": ">=20"
   }
 }
+
