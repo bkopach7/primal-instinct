@@ -34,6 +34,10 @@ If Windows asks whether Node.js can communicate on a network, allow it on privat
 
 Rounds last three minutes. Fighters start with 100 health. KOs are worth one point, and defeated players respawn after a short delay. The highest KO score wins; ties go to remaining health.
 
+## Combat and presentation
+
+Fighters accelerate, carry momentum, separate on contact, and recoil through knockback and hit-stun. Light and heavy attacks now have readable wind-up and recovery windows, with the three-hit heavy chain ending in a stronger finisher. The arena and articulated fighter animations are drawn in real time on the canvas, including beast silhouettes, slash trails, and impact sparks.
+
 ## Network scope
 
 When running the server locally, players on the same Wi-Fi can join through the host computer. When hosted on the internet, players can join from anywhere using the hosted invite link and room code.
@@ -45,3 +49,4 @@ The arena uses a stylized 2.5D canvas view with a pulled-back shoulder camera. T
 The included `render.yaml` prepares a Render web service. The server supports room-code multiplayer through WebSockets. Set a strong `PI_INVITE_TOKEN` environment variable on the host: both the game page and its WebSocket reject requests without the matching `?invite=` query parameter. Anyone with the complete invite URL can use it. Keep the token out of the repository and share the invite URL only with players.
 
 For a Render deploy, create a Node web service from this repository with `npm install --omit=dev` as the build command and `npm start` as the start command. Set `PI_INVITE_TOKEN` as a secret environment variable. The service listens on Render's assigned `PORT` and responds to `/health`. Render's free web services can spin down after 15 minutes without inbound requests, so the first visit after an idle period may take longer to load.
+
