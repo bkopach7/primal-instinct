@@ -18,10 +18,11 @@ If Windows asks whether Node.js can communicate on a network, allow it on privat
 
 ## Controls
 
-- **Keyboard:** WASD or arrow keys to move around your opponent, J/Z for light, K/X for heavy, L/Space to guard, Shift to transform, E for Primal Drive. Your fighter faces the nearest opponent automatically.
-- **Touch:** Use the on-screen stick and Light, Heavy, Guard, Shift, and Drive buttons.
-- Chain attacks quickly. A heavy strike at the end of a three-hit chain adds a chain finisher.
-- Land or take hits to build Beast meter. Shift at 35%; your meter drains while transformed. Primal Drive consumes 45 meter.
+- **Keyboard:** WASD/arrows move relative to your locked opponent; Q cycles targets in a room; J/Z quick strike; K/X heavy strike; U launcher; I sweep; L guard; Space sidestep evade; R or Shift transforms; E uses Primal Drive.
+- **Gamepad:** Left stick moves; A quick strike; B heavy; X launcher; Y sweep; LB guard; LT evade; RB transform; RT Primal Drive.
+- **Touch:** Use the on-screen stick and labeled action buttons.
+- Chain J → J → K for a Beast Breaker. Launch with U, then connect J or K while your opponent is airborne. Evade at the last moment to avoid a hit and open a short punish window.
+- Land or take hits to build Beast meter. Shift at 35%; the meter drains while transformed. Primal Drive consumes 45 meter.
 
 ## Fighters
 
@@ -32,11 +33,13 @@ If Windows asks whether Node.js can communicate on a network, allow it on privat
 
 ## Match rules
 
-Rounds last three minutes. Fighters start with 100 health. KOs are worth one point, and defeated players respawn after a short delay. The highest KO score wins; ties go to remaining health.
+Practice is a best-of-three duel against a CPU. Each round lasts one minute; a knockout wins the round, and the fighter with more health wins on time. First to two rounds takes the match. Practice uses the same combo, evade, transformation, and Beast Drive systems as room play.
+
+Room-code matches support 2–8 fighters in a three-minute free-for-all. Fighters start each match with 100 health, score KOs, and respawn after a short delay. The top KO score wins; ties go to remaining health.
 
 ## Combat and presentation
 
-Fighters accelerate, carry momentum, separate on contact, and recoil through knockback and hit-stun. Light and heavy attacks have readable wind-up and recovery windows, with the third heavy strike in a chain ending in a stronger finisher. The browser game uses a 3D over-the-shoulder arena with articulated fighters, Japanese night-market lighting, an arena floor, and distinct beast forms. The built-in canvas renderer is the offline fallback.
+Fighters accelerate and brake responsively, separate on contact, and recoil through knockback and hit-stun. Quick strikes, heavy strikes, launchers, sweeps, air follow-ups, a three-hit breaker, guard, timed sidestep evades, target selection, beast forms, and a meter-consuming Beast Drive create distinct choices in a fight. Practice uses readable 60-second rounds and health bars for both fighters. The 3D over-the-shoulder arena has cel-shaded, ink-outlined original fighters, a Japanese night-market stage, telegraphed attack animations, and beast-form aura effects. A built-in canvas renderer remains available for offline single-file play.
 
 ## Network scope
 
