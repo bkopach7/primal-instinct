@@ -1031,9 +1031,8 @@
       scene.background = new THREE.Color(0x0c111c);
       scene.fog = new THREE.FogExp2(0x0c111c, 0.019);
       const world = new THREE.Group(); scene.add(world);
-      const camera = new THREE.PerspectiveCamera(49, innerWidth / innerHeight, 0.08, 160);
+      const camera = new THREE.PerspectiveCamera(52, innerWidth / innerHeight, 0.08, 160);
       camera.position.set(0, 3, 8);
-      const clock = new THREE.Clock();
       const fighters = new Map();
       const smoothed = new Map();
       const impacts = [];
@@ -1148,18 +1147,28 @@
         const eyeWhite = new THREE.MeshBasicMaterial({ color: 0xffead0 });
         const inkGeometries = [];
         const group = new THREE.Group(); root.add(group);
-        const pelvis = addMesh(group, sphere, pants, [0, .66, 0], [.37, .31, .32]);
-        const torso = addMesh(group, sphere, accent, [0, 1.19, 0], [.48, .59, .34]);
+        const pelvis = addMesh(group, sphere, pants, [0, .66, 0], [.36, .29, .3]);
+        const torso = addMesh(group, sphere, accent, [0, 1.19, 0], [.44, .56, .31]);
         addMesh(group, sphere, cloth, [0, .95, .285], [.24, .35, .075]);
+        // Layered gi panels and a crossed harness give the fighters a clear read from behind.
+        addMesh(group, sphere, accentDark, [0, 1.18, -.28], [.31, .39, .07]);
+        addMesh(group, sphere, cloth, [0, 1.2, -.337], [.235, .295, .018], false);
+        const backStrapL = addMesh(group, box, goldMat, [-.015, 1.18, -.36], [.055, .76, .024], false); backStrapL.rotation.z = -.52;
+        const backStrapR = addMesh(group, box, goldMat, [.015, 1.18, -.365], [.055, .76, .024], false); backStrapR.rotation.z = .52;
+        addMesh(group, box, accentDark, [0, .83, -.31], [.48, .055, .035]);
+        const ribbonL = addMesh(group, sphere, accent, [-.16, .49, -.24], [.095, .31, .06]); ribbonL.rotation.z = -.12;
+        const ribbonR = addMesh(group, sphere, accent, [.16, .49, -.24], [.095, .31, .06]); ribbonR.rotation.z = .12;
         addMesh(group, box, goldMat, [0, .78, .02], [.79, .105, .69]);
         addMesh(group, box, accentDark, [0, .77, .39], [.31, .13, .055]);
         addMesh(group, new THREE.TorusGeometry(.39, .055, 7, 24), goldMat, [0, .78, .02], [1, 1, .84]);
         const collar = addMesh(group, new THREE.TorusGeometry(.29, .065, 7, 18), cloth, [0, 1.52, 0], [1, .74, .85]); collar.rotation.x = Math.PI / 2;
         const chestMark = addMesh(group, coneGeometry, goldMat, [.09, 1.35, .29], [.16, .22, .12]); chestMark.rotation.z = Math.PI;
-        const shoulderL = addMesh(group, sphere, accentDark, [-.43, 1.44, 0], [.23, .22, .34]);
-        const shoulderR = addMesh(group, sphere, accentDark, [.43, 1.44, 0], [.23, .22, .34]);
-        addMesh(group, box, goldMat, [-.43, 1.46, .245], [.28, .055, .035], false);
-        addMesh(group, box, goldMat, [.43, 1.46, .245], [.28, .055, .035], false);
+        const shoulderL = addMesh(group, sphere, accentDark, [-.39, 1.43, 0], [.2, .18, .28]);
+        const shoulderR = addMesh(group, sphere, accentDark, [.39, 1.43, 0], [.2, .18, .28]);
+        addMesh(group, sphere, accent, [-.39, 1.48, .015], [.18, .12, .22]);
+        addMesh(group, sphere, accent, [.39, 1.48, .015], [.18, .12, .22]);
+        addMesh(group, box, goldMat, [-.39, 1.46, .225], [.22, .045, .025], false);
+        addMesh(group, box, goldMat, [.39, 1.46, .225], [.22, .045, .025], false);
         const armL = limb(group, -.49, 1.39, new THREE.CylinderGeometry(.16, .115, .5, 9), accent, [.98, 1, .98]);
         const armR = limb(group, .49, 1.39, new THREE.CylinderGeometry(.16, .115, .5, 9), accent, [.98, 1, .98]);
         const fistL = addMesh(armL, sphere, glove, [0, -.52, .045], [.17, .18, .18]);
@@ -1169,13 +1178,18 @@
         const legR = limb(group, .2, .6, new THREE.CylinderGeometry(.2, .15, .56, 9), pants, [.9, 1, .95]);
         addMesh(legL, sphere, pants, [0, -.43, .02], [.15, .25, .16]); addMesh(legR, sphere, pants, [0, -.43, .02], [.15, .25, .16]);
         addMesh(legL, box, glove, [0, -.515, .13], [.32, .18, .48]); addMesh(legR, box, glove, [0, -.515, .13], [.32, .18, .48]);
-        const head = new THREE.Group(); head.position.set(0, 1.83, .015); group.add(head);
+        const head = new THREE.Group(); head.position.set(0, 1.84, .015); head.scale.setScalar(.88); group.add(head);
         addMesh(head, sphere, skin, [0, 0, .025], [.29, .34, .26]);
         addMesh(head, sphere, accentDark, [0, .17, -.015], [.31, .18, .28]);
         addMesh(head, sphere, skin, [0, -.13, .14], [.19, .12, .16]);
         const hairTips = [];
         for (const [x, y, z, tilt] of [[-.2, .22, .02, -.34], [-.1, .3, .02, -.18], [0, .32, .01, 0], [.1, .3, .02, .18], [.2, .22, .02, .34]]) {
           const spike = addMesh(head, coneGeometry, accentDark, [x, y, z], [.82, 1.08, .86]); spike.rotation.z = tilt; hairTips.push(spike);
+        }
+        const backLocks = [];
+        for (const [x, y, tilt] of [[-.16, -.12, -.24], [0, -.19, 0], [.16, -.12, .24]]) {
+          const lock = addMesh(head, coneGeometry, accentDark, [x, y, -.17], [.92, 1.85, .88]);
+          lock.rotation.x = -1.12; lock.rotation.z = tilt; backLocks.push(lock);
         }
         addMesh(head, box, goldMat, [0, .075, .258], [.42, .045, .038], false);
         const pupilMat = new THREE.MeshBasicMaterial({ color: 0x17131a });
@@ -1227,7 +1241,7 @@
           if (normals) { for (let i = 0; i < positions.count; i += 1) positions.setXYZ(i, positions.getX(i) + normals.getX(i) * .024, positions.getY(i) + normals.getY(i) * .024, positions.getZ(i) + normals.getZ(i) * .024); positions.needsUpdate = true; geometry.computeVertexNormals(); }
           const outline = new THREE.Mesh(geometry, inkMaterial); outline.name = 'ink-edge'; outline.renderOrder = 1; node.add(outline); node.renderOrder = 2; inkGeometries.push(geometry);
         }
-        return { root, group, armL, armR, legL, legR, head, ears, animalEyes, tusks, stripes, claws, tail, tailBase, muzzle, nose, ruff, aura, torso, pelvis, shoulderL, shoulderR, fistL, fistR, barRoot, bar, underBar, accent, style, hairTips, inkGeometries, species: style.beast || 'Wolf', previousAction: '', hitPulse: 0 };
+        return { root, group, armL, armR, legL, legR, head, ears, animalEyes, tusks, stripes, claws, tail, tailBase, muzzle, nose, ruff, aura, torso, pelvis, shoulderL, shoulderR, fistL, fistR, backLocks, ribbonL, ribbonR, barRoot, bar, underBar, accent, style, hairTips, inkGeometries, species: style.beast || 'Wolf', previousAction: '', hitPulse: 0 };
       }
       function makeImpact(x, z, color) {
         const group = new THREE.Group(); group.position.set(x, 1.1, z); world.add(group);
@@ -1269,6 +1283,7 @@
           model.group.position.y = airPhase ? Math.sin(airPhase * Math.PI) * .98 : Math.abs(Math.sin(stride * 2)) * .045 * moving;
           model.group.rotation.x = 0; model.group.rotation.z = 0;
           model.tail.rotation.x = Math.sin(now * .004 + point.x) * .2; model.tail.rotation.y = Math.sin(now * .003 + point.z) * .28;
+          model.ribbonL.rotation.x = Math.sin(now * .006 + point.x) * .12; model.ribbonR.rotation.x = -Math.sin(now * .006 + point.z) * .12;
           model.head.rotation.x = beast ? -.06 : 0;
           if (player.guard) { model.armL.rotation.x = -1.05; model.armR.rotation.x = -1.12; model.armL.rotation.z = .5; model.armR.rotation.z = -.5; model.group.position.y -= .08; }
           if (action === 'light' || action === 'beastLight') {
@@ -1302,8 +1317,11 @@
           world.rotation.y = -yaw;
           world.position.set(-point.x * fz + point.z * fx, 0, -point.x * fx - point.z * fz);
           const kick = now < cameraKickUntil ? Math.sin((cameraKickUntil - now) / 125 * Math.PI) * cameraKick : 0;
-          camera.position.set(.62 + kick, 2.82 + kick * .45, -3.85);
-          camera.lookAt(0, 1.05, 3.05);
+          const lockedTarget = state.find((fighter) => fighter.id === self.targetId) || state.find((fighter) => fighter.id !== self.id && fighter.hp > 0 && !fighter.respawnAt);
+          const targetDistance = lockedTarget ? Math.hypot(lockedTarget.x - self.x, lockedTarget.z - self.z) : 6;
+          const cameraBack = Math.max(4.85, Math.min(6.15, 4.85 + (targetDistance - 3.5) * .25));
+          camera.position.set(.78 + kick, 3.02 + kick * .42, -cameraBack);
+          camera.lookAt(0, 1.08, Math.max(2.8, Math.min(4.1, targetDistance * .54)));
         }
         for (let i = impacts.length - 1; i >= 0; i -= 1) {
           const fx = impacts[i]; fx.life -= dt; const t = Math.max(0, fx.life / .27);
