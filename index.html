@@ -379,6 +379,7 @@
       return target ? { player: target, distance: best } : null;
     }
     function offlineHit(attacker, victim, damage, knockback, now) {
+      if (attacker.isBot) damage *= .42;
       const guarded = victim.guard && now >= victim.stunUntil;
       if (guarded) damage *= victim.style.guardDamage;
       if (victim.hp <= 0 || victim.respawnAt) return;
@@ -469,7 +470,7 @@
               if (distance > 2.1) { player.moveX = dx / distance; player.moveZ = dz / distance; player.guard = false; player.facingX = dx / distance; player.facingZ = dz / distance; }
               else {
                 player.moveX = 0; player.moveZ = 0; player.guard = Math.random() < .16;
-                if (now >= player.nextActionAt) { offlineAttack(player, Math.random() < .34 ? 'heavy' : 'light', now); player.nextActionAt = now + 410 + Math.random() * 290; }
+                if (now >= player.nextActionAt) { offlineAttack(player, Math.random() < .25 ? 'heavy' : 'light', now); player.nextActionAt = now + 850 + Math.random() * 350; }
                 if (!player.beast && player.meter >= 35 && Math.random() < .18) offlineActionForBot(player, 'transform', now);
                 if (player.beast && player.meter >= 45 && distance < 3.5 && Math.random() < .2) offlineActionForBot(player, 'finisher', now);
               }
@@ -480,7 +481,7 @@
         const inputLength = Math.hypot(player.moveX, player.moveZ);
         const canAct = now >= player.stunUntil;
         const inRecovery = player.action && player.action !== 'hit' && now < player.actionUntil;
-        const speed = player.style.speed * (player.guard ? .66 : (player.beast ? 1.22 : 1)) * (inRecovery ? .34 : 1);
+        const speed = player.style.speed * (player.isBot ? .72 : 1) * (player.guard ? .66 : (player.beast ? 1.22 : 1)) * (inRecovery ? .34 : 1);
         const desiredX = canAct && inputLength > .06 ? player.moveX / inputLength * speed : 0;
         const desiredZ = canAct && inputLength > .06 ? player.moveZ / inputLength * speed : 0;
         const approach = Math.min(1, (inputLength > .06 && canAct ? 24 : 0) * dt);
