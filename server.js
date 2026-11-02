@@ -89,7 +89,7 @@ function createPlayer(client, name, host, requestedStyle) {
     respawnAt: 0, lightAt: 0, heavyAt: 0, finisherAt: 0,
     comboAt: 0, comboStep: 0, moveX: 0, moveZ: 0, guard: false,
     action: null, actionAt: 0, actionUntil: 0, attackAt: 0, attackResolved: true,
-    attackMove: '', message: '', messageUntil: 0,
+    attackMove: '', attackComboStep: 0, message: '', messageUntil: 0,
   };
 }
 
@@ -130,7 +130,9 @@ function startRound(room) {
     player.beast = false;
     player.score = 0;
     player.respawnAt = 0;
-    player.action = null; player.actionAt = 0; player.actionUntil = 0; player.attackAt = 0; player.attackResolved = true;
+    player.action = null; player.actionAt = 0; player.actionUntil = 0; player.attackAt = 0; player.attackResolved = true; player.attackComboStep = 0;
+    player.attackMove = ''; player.lightAt = 0; player.heavyAt = 0; player.finisherAt = 0; player.comboAt = 0; player.comboStep = 0;
+    player.message = ''; player.messageUntil = 0;
     i += 1;
   }
 }
@@ -188,9 +190,8 @@ function doAttack(room, player, move, now) {
   if (isLight) player.lightAt = now; else player.heavyAt = now;
 
   if (now - player.comboAt > 1200) player.comboStep = 0;
-  player.comboStep += 1;
-  player.comboAt = now;
-  const finisherChain = !isLight && player.comboStep >= 3;
+  const nextComboStep = player.comboStep + 1;
+  const finisherChain = !isLight && nextComboStep >= 3;
   const target = findTarget(room, player, player.beast ? 4.1 : 3.5);
   if (target) {
     player.facingX = (target.player.x - player.x) / target.distance;
@@ -203,12 +204,10 @@ function doAttack(room, player, move, now) {
   player.attackAt = now + (isLight ? 105 : 190);
   player.attackResolved = false;
   player.attackMove = finisherChain ? 'finisher' : move;
+  player.attackComboStep = nextComboStep;
   const lunge = isLight ? 2.1 : 3.15;
   player.vx += player.facingX * lunge;
   player.vz += player.facingZ * lunge;
-  player.message = finisherChain ? 'CHAIN FINISH!' : `${player.comboStep} HIT`;
-  player.messageUntil = now + 700;
-  if (player.comboStep >= 3) player.comboStep = 0;
 }
 
 function resolveAttack(room, player, now) {
@@ -217,14 +216,17 @@ function resolveAttack(room, player, now) {
   const finisherChain = player.attackMove === 'finisher';
   const range = player.beast ? (isLight ? 3.65 : 4.15) : (isLight ? 3.15 : 3.7);
   const target = findTarget(room, player, range);
-  if (!target) return;
+  if (!target) { player.message = 'WHIFF'; player.messageUntil = now + 450; return; }
+  player.comboStep = player.attackComboStep;
+  player.comboAt = now;
   player.facingX = (target.player.x - player.x) / target.distance;
   player.facingZ = (target.player.z - player.z) / target.distance;
-  const chainBonus = finisherChain ? player.style.chainPower : Math.min(3, (player.comboStep - 1) * 1.5);
+  const chainBonus = finisherChain ? player.style.chainPower : Math.min(3, (player.attackComboStep - 1) * 1.5);
   const damage = ((isLight ? player.style.light : player.style.heavy) + chainBonus) * (player.beast ? player.style.beastPower : 1);
   applyHit(room, player, target.player, damage, finisherChain ? 1.15 : (isLight ? 0.52 : 1.02), now);
-  player.message = finisherChain ? 'CHAIN FINISH!' : `${player.comboStep} HIT`;
+  player.message = finisherChain ? 'CHAIN FINISH!' : `${player.attackComboStep} HIT`;
   player.messageUntil = now + 700;
+  if (player.attackComboStep >= 3) player.comboStep = 0;
 }
 
 function action(client, message) {
