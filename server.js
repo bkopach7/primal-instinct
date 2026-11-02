@@ -7,6 +7,7 @@ const crypto = require('node:crypto');
 const PORT = Number(process.env.PORT || 4173);
 const INVITE_TOKEN = process.env.PI_INVITE_TOKEN || '';
 const PAGE = path.join(__dirname, 'index.html');
+const THREE_MODULE = path.join(__dirname, 'node_modules', 'three', 'build', 'three.module.js');
 const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 const rooms = new Map();
 const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -425,6 +426,14 @@ const server = http.createServer((request, response) => {
   if (INVITE_TOKEN && parsedUrl.searchParams.get('invite') !== INVITE_TOKEN) { response.writeHead(404); response.end('Not found'); return; }
   if (parsedUrl.pathname === '/favicon.ico') { response.writeHead(204); response.end(); return; }
   if (request.method !== 'GET') { response.writeHead(405); response.end('Method not allowed'); return; }
+  if (parsedUrl.pathname === '/vendor/three.module.js') {
+    fs.readFile(THREE_MODULE, (error, content) => {
+      if (error) { response.writeHead(503, { 'Content-Type': 'text/plain; charset=utf-8' }); response.end('3D renderer is not installed'); return; }
+      response.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=86400' });
+      response.end(content);
+    });
+    return;
+  }
   fs.readFile(PAGE, (error, content) => {
     if (error) { response.writeHead(500); response.end('Game page missing'); return; }
     response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
