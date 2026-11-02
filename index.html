@@ -1048,6 +1048,27 @@
       const box = new THREE.BoxGeometry(1, 1, 1);
       const postGeometry = new THREE.CylinderGeometry(.13, .18, 1, 8);
       const coneGeometry = new THREE.ConeGeometry(.15, .48, 8);
+      const torsoGeometry = (() => {
+        const rings = [[-.98, .62, .7], [-.68, .8, .82], [-.3, .94, .92], [.18, 1, .9], [.58, .82, .77], [.94, .55, .58]];
+        const radial = 20; const vertices = []; const uvs = []; const indices = [];
+        for (let ring = 0; ring < rings.length; ring += 1) {
+          const [y, rx, rz] = rings[ring];
+          for (let segment = 0; segment < radial; segment += 1) {
+            const angle = segment / radial * Math.PI * 2;
+            vertices.push(Math.sin(angle) * rx, y, Math.cos(angle) * rz);
+            uvs.push(segment / radial, ring / (rings.length - 1));
+          }
+        }
+        for (let ring = 0; ring < rings.length - 1; ring += 1) for (let segment = 0; segment < radial; segment += 1) {
+          const a = ring * radial + segment; const b = ring * radial + (segment + 1) % radial; const d = (ring + 1) * radial + segment; const c = (ring + 1) * radial + (segment + 1) % radial;
+          indices.push(a, b, d, b, c, d);
+        }
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+        geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+        geometry.setIndex(indices); geometry.computeVertexNormals();
+        return geometry;
+      })();
       const floorMat = material(0x292831, .92);
       const tileMat = material(0x36323a, .88);
       const redMat = material(0x9e382f, .68);
@@ -1148,13 +1169,14 @@
         const inkGeometries = [];
         const group = new THREE.Group(); root.add(group);
         const pelvis = addMesh(group, sphere, pants, [0, .66, 0], [.36, .29, .3]);
-        const torso = addMesh(group, sphere, accent, [0, 1.19, 0], [.44, .56, .31]);
+        const torso = addMesh(group, torsoGeometry, accent, [0, 1.19, 0], [.44, .56, .31]);
         addMesh(group, sphere, cloth, [0, .95, .285], [.24, .35, .075]);
-        // Layered gi panels and a crossed harness give the fighters a clear read from behind.
-        addMesh(group, sphere, accentDark, [0, 1.18, -.28], [.31, .39, .07]);
-        addMesh(group, sphere, cloth, [0, 1.2, -.337], [.235, .295, .018], false);
-        const backStrapL = addMesh(group, box, goldMat, [-.015, 1.18, -.36], [.055, .76, .024], false); backStrapL.rotation.z = -.52;
-        const backStrapR = addMesh(group, box, goldMat, [.015, 1.18, -.365], [.055, .76, .024], false); backStrapR.rotation.z = .52;
+        // A small clan crest and tailored seams keep the back readable without obscuring the gi.
+        addMesh(group, sphere, accentDark, [0, 1.18, -.288], [.18, .25, .025]);
+        const backCrest = new THREE.Mesh(new THREE.TorusGeometry(.13, .018, 6, 22), goldMat);
+        backCrest.position.set(0, 1.18, -.318); group.add(backCrest);
+        addMesh(group, box, goldMat, [0, 1.18, -.324], [.027, .19, .012], false);
+        addMesh(group, box, accentDark, [0, .86, -.29], [.48, .08, .035]);
         addMesh(group, box, accentDark, [0, .83, -.31], [.48, .055, .035]);
         const ribbonL = addMesh(group, sphere, accent, [-.16, .49, -.24], [.095, .31, .06]); ribbonL.rotation.z = -.12;
         const ribbonR = addMesh(group, sphere, accent, [.16, .49, -.24], [.095, .31, .06]); ribbonR.rotation.z = .12;
@@ -1187,9 +1209,9 @@
           const spike = addMesh(head, coneGeometry, accentDark, [x, y, z], [.82, 1.08, .86]); spike.rotation.z = tilt; hairTips.push(spike);
         }
         const backLocks = [];
-        for (const [x, y, tilt] of [[-.16, -.12, -.24], [0, -.19, 0], [.16, -.12, .24]]) {
-          const lock = addMesh(head, coneGeometry, accentDark, [x, y, -.17], [.92, 1.85, .88]);
-          lock.rotation.x = -1.12; lock.rotation.z = tilt; backLocks.push(lock);
+        for (const [x, y, tilt] of [[-.145, -.04, -.18], [0, -.15, 0], [.145, -.04, .18]]) {
+          const lock = addMesh(head, sphere, accentDark, [x, y, -.18], [.105, .235, .135]);
+          lock.rotation.z = tilt; backLocks.push(lock);
         }
         addMesh(head, box, goldMat, [0, .075, .258], [.42, .045, .038], false);
         const pupilMat = new THREE.MeshBasicMaterial({ color: 0x17131a });
