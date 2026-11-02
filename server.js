@@ -7,7 +7,9 @@ const crypto = require('node:crypto');
 const PORT = Number(process.env.PORT || 4173);
 const INVITE_TOKEN = process.env.PI_INVITE_TOKEN || '';
 const PAGE = path.join(__dirname, 'index.html');
-const THREE_MODULE = path.join(__dirname, 'node_modules', 'three', 'build', 'three.module.js');
+const THREE_BUILD_DIR = path.join(__dirname, 'node_modules', 'three', 'build');
+const THREE_MODULE = path.join(THREE_BUILD_DIR, 'three.module.js');
+const THREE_CORE = path.join(THREE_BUILD_DIR, 'three.core.js');
 const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 const rooms = new Map();
 const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -466,6 +468,18 @@ function removeClient(client) {
 const server = http.createServer((request, response) => {
   const parsedUrl = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
   if (parsedUrl.pathname === '/health') { response.writeHead(200, { 'Content-Type': 'application/json' }); response.end(JSON.stringify({ ok: true, renderer: fs.existsSync(THREE_MODULE) })); return; }
+  // Newer Three.js builds split the module into three.module.js and three.core.js.
+  // The latter is fetched as a relative import without the game's invite query.
+  // Expose only this fixed, public library asset outside the invite gate.
+  if (parsedUrl.pathname === '/vendor/three.core.js') {
+    if (request.method !== 'GET') { response.writeHead(405); response.end('Method not allowed'); return; }
+    fs.readFile(THREE_CORE, (error, content) => {
+      if (error) { console.error(`Three.js core request failed: ${error.code}`); response.writeHead(503, { 'Content-Type': 'text/plain; charset=utf-8' }); response.end('3D renderer core is not installed'); return; }
+      response.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=86400' });
+      response.end(content);
+    });
+    return;
+  }
   if (INVITE_TOKEN && parsedUrl.searchParams.get('invite') !== INVITE_TOKEN) { response.writeHead(404); response.end('Not found'); return; }
   if (parsedUrl.pathname === '/favicon.ico') { response.writeHead(204); response.end(); return; }
   if (request.method !== 'GET') { response.writeHead(405); response.end('Method not allowed'); return; }
