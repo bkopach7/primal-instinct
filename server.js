@@ -84,10 +84,12 @@ function createPlayer(client, name, host, requestedStyle) {
   return {
     id: id(), name: safeName(name), color: style.color, style,
     host, client, x: Math.cos(angle) * 2.4, z: Math.sin(angle) * 2.4,
+    vx: 0, vz: 0, stunUntil: 0, hitstopUntil: 0,
     facingX: 0, facingZ: 1, hp: 100, meter: 0, beast: false, score: 0,
     respawnAt: 0, lightAt: 0, heavyAt: 0, finisherAt: 0,
     comboAt: 0, comboStep: 0, moveX: 0, moveZ: 0, guard: false,
-    action: null, actionUntil: 0, message: '', messageUntil: 0,
+    action: null, actionAt: 0, actionUntil: 0, attackAt: 0, attackResolved: true,
+    attackMove: '', message: '', messageUntil: 0,
   };
 }
 
@@ -112,6 +114,7 @@ function enterRoom(client, room, name, host, requestedStyle) {
 function startRound(room) {
   room.phase = 'playing';
   room.endsAt = Date.now() + 180000;
+  room.lastTickAt = Date.now();
   room.winnerIds = [];
   let i = 0;
   const count = Math.max(1, room.players.size);
@@ -119,6 +122,7 @@ function startRound(room) {
     const angle = (i / count) * Math.PI * 2;
     player.x = Math.cos(angle) * 3.2;
     player.z = Math.sin(angle) * 3.2;
+    player.vx = 0; player.vz = 0; player.stunUntil = 0; player.hitstopUntil = 0;
     player.facingX = -Math.cos(angle);
     player.facingZ = -Math.sin(angle);
     player.hp = 100;
@@ -126,24 +130,29 @@ function startRound(room) {
     player.beast = false;
     player.score = 0;
     player.respawnAt = 0;
-    player.action = null;
+    player.action = null; player.actionAt = 0; player.actionUntil = 0; player.attackAt = 0; player.attackResolved = true;
     i += 1;
   }
 }
 
-function findTarget(room, attacker, range) {
+function findTarget(room, attacker, range, frontOnly = true) {
   let target = null;
   let best = range;
   for (const candidate of room.players.values()) {
     if (candidate.id === attacker.id || candidate.hp <= 0 || candidate.respawnAt) continue;
     const distance = Math.hypot(candidate.x - attacker.x, candidate.z - attacker.z);
+    if (frontOnly && distance > 0.001) {
+      const dot = ((candidate.x - attacker.x) * attacker.facingX + (candidate.z - attacker.z) * attacker.facingZ) / distance;
+      if (dot < -0.1) continue;
+    }
     if (distance < best) { best = distance; target = candidate; }
   }
   return target ? { player: target, distance: best } : null;
 }
 
 function applyHit(room, attacker, victim, damage, knockback, now) {
-  if (victim.guard) damage *= victim.style.guardDamage;
+  const guarded = victim.guard && now >= victim.stunUntil;
+  if (guarded) damage *= victim.style.guardDamage;
   if (victim.hp <= 0 || victim.respawnAt) return;
   victim.hp = Math.max(0, victim.hp - damage);
   attacker.meter = Math.min(100, attacker.meter + Math.max(4, damage * 0.55) * attacker.style.meterGain);
@@ -151,10 +160,15 @@ function applyHit(room, attacker, victim, damage, knockback, now) {
   const dx = victim.x - attacker.x;
   const dz = victim.z - attacker.z;
   const length = Math.hypot(dx, dz) || 1;
-  victim.x = Math.max(-7.1, Math.min(7.1, victim.x + (dx / length) * knockback));
-  victim.z = Math.max(-7.1, Math.min(7.1, victim.z + (dz / length) * knockback));
+  const force = knockback * (guarded ? 1.5 : 5.1);
+  victim.vx += (dx / length) * force;
+  victim.vz += (dz / length) * force;
+  victim.stunUntil = now + (guarded ? 95 : (knockback > 0.8 ? 420 : 245));
+  victim.hitstopUntil = now + (guarded ? 34 : 74);
+  attacker.hitstopUntil = Math.max(attacker.hitstopUntil, now + 38);
   victim.action = 'hit';
-  victim.actionUntil = now + 260;
+  victim.actionAt = now;
+  victim.actionUntil = now + (guarded ? 170 : 390);
   if (victim.hp <= 0) {
     attacker.score += 1;
     victim.respawnAt = now + 1800;
@@ -177,20 +191,40 @@ function doAttack(room, player, move, now) {
   player.comboStep += 1;
   player.comboAt = now;
   const finisherChain = !isLight && player.comboStep >= 3;
-  const target = findTarget(room, player, player.beast ? 3.1 : 2.65);
-  player.action = player.beast ? (isLight ? 'beastLight' : 'beastHeavy') : (isLight ? 'light' : 'heavy');
-  player.actionUntil = now + (isLight ? 270 : 400);
-  player.facingX = target ? (target.player.x - player.x) / target.distance : player.facingX;
-  player.facingZ = target ? (target.player.z - player.z) / target.distance : player.facingZ;
+  const target = findTarget(room, player, player.beast ? 4.1 : 3.5);
   if (target) {
-    const chainBonus = finisherChain ? player.style.chainPower : Math.min(3, (player.comboStep - 1) * 1.5);
-    const baseDamage = isLight ? player.style.light : player.style.heavy;
-    const damage = (baseDamage + chainBonus) * (player.beast ? player.style.beastPower : 1);
-    applyHit(room, player, target.player, damage, finisherChain ? 0.9 : (isLight ? 0.32 : 0.58), now);
-    player.message = finisherChain ? 'CHAIN FINISH!' : `${player.comboStep} HIT`;
-    player.messageUntil = now + 700;
+    player.facingX = (target.player.x - player.x) / target.distance;
+    player.facingZ = (target.player.z - player.z) / target.distance;
   }
+  const duration = isLight ? 350 : 560;
+  player.action = player.beast ? (isLight ? 'beastLight' : 'beastHeavy') : (isLight ? 'light' : 'heavy');
+  player.actionAt = now;
+  player.actionUntil = now + duration;
+  player.attackAt = now + (isLight ? 105 : 190);
+  player.attackResolved = false;
+  player.attackMove = finisherChain ? 'finisher' : move;
+  const lunge = isLight ? 2.1 : 3.15;
+  player.vx += player.facingX * lunge;
+  player.vz += player.facingZ * lunge;
+  player.message = finisherChain ? 'CHAIN FINISH!' : `${player.comboStep} HIT`;
+  player.messageUntil = now + 700;
   if (player.comboStep >= 3) player.comboStep = 0;
+}
+
+function resolveAttack(room, player, now) {
+  player.attackResolved = true;
+  const isLight = player.attackMove === 'light';
+  const finisherChain = player.attackMove === 'finisher';
+  const range = player.beast ? (isLight ? 3.65 : 4.15) : (isLight ? 3.15 : 3.7);
+  const target = findTarget(room, player, range);
+  if (!target) return;
+  player.facingX = (target.player.x - player.x) / target.distance;
+  player.facingZ = (target.player.z - player.z) / target.distance;
+  const chainBonus = finisherChain ? player.style.chainPower : Math.min(3, (player.comboStep - 1) * 1.5);
+  const damage = ((isLight ? player.style.light : player.style.heavy) + chainBonus) * (player.beast ? player.style.beastPower : 1);
+  applyHit(room, player, target.player, damage, finisherChain ? 1.15 : (isLight ? 0.52 : 1.02), now);
+  player.message = finisherChain ? 'CHAIN FINISH!' : `${player.comboStep} HIT`;
+  player.messageUntil = now + 700;
 }
 
 function action(client, message) {
@@ -198,7 +232,7 @@ function action(client, message) {
   const player = room && room.players.get(client.playerId);
   if (!room || !player) {
     if (message.type === 'create') {
-      const room = { code: roomCode(), phase: 'lobby', players: new Map(), hostId: null, endsAt: 0, winnerIds: [] };
+      const room = { code: roomCode(), phase: 'lobby', players: new Map(), hostId: null, endsAt: 0, lastTickAt: Date.now(), winnerIds: [] };
       rooms.set(room.code, room);
       const host = createPlayer(client, message.name, true, message.style);
       room.hostId = host.id;
@@ -242,7 +276,9 @@ function action(client, message) {
       player.finisherAt = now;
       player.meter -= 45;
       player.action = 'finisher';
+      player.actionAt = now;
       player.actionUntil = now + 650;
+      player.attackResolved = true;
       player.message = 'PRIMAL DRIVE!';
       player.messageUntil = now + 900;
       for (const target of room.players.values()) {
@@ -258,33 +294,93 @@ function action(client, message) {
   }
 }
 
-function snapshot(room, now) {
-  const players = [...room.players.values()].map((player) => {
-    if (player.respawnAt && now >= player.respawnAt && room.phase === 'playing') {
+function stepRoom(room, now) {
+  const dt = Math.max(0.001, Math.min(0.05, (now - (room.lastTickAt || now - 0.033)) / 1000));
+  room.lastTickAt = now;
+  const fighters = [...room.players.values()];
+  for (const player of fighters) {
+    if (player.respawnAt && now >= player.respawnAt) {
       player.hp = 100;
       player.meter = Math.max(0, player.meter - 12);
       player.respawnAt = 0;
       player.x = (Math.random() - 0.5) * 5;
       player.z = (Math.random() - 0.5) * 5;
+      player.vx = 0; player.vz = 0;
       player.message = 'BACK IN';
       player.messageUntil = now + 800;
     }
-    if (player.beast && room.phase === 'playing') {
-      player.meter = Math.max(0, player.meter - 0.26);
+    if (player.beast) {
+      player.meter = Math.max(0, player.meter - dt * 3.94);
       if (player.meter <= 0) { player.beast = false; player.message = 'METER EMPTY'; player.messageUntil = now + 700; }
     }
-    const isMoving = Math.abs(player.moveX) + Math.abs(player.moveZ) > 0.05;
-    if (isMoving && !player.respawnAt && player.hp > 0 && room.phase === 'playing') {
-      const length = Math.hypot(player.moveX, player.moveZ) || 1;
-      const speed = player.guard ? player.style.speed * 0.66 : (player.beast ? player.style.speed * 1.22 : player.style.speed);
-      player.x = Math.max(-7.1, Math.min(7.1, player.x + (player.moveX / length) * speed * 0.066));
-      player.z = Math.max(-7.1, Math.min(7.1, player.z + (player.moveZ / length) * speed * 0.066));
+    if (player.attackAt && !player.attackResolved && now >= player.attackAt) resolveAttack(room, player, now);
+    if (player.actionUntil <= now) { player.action = null; player.attackMove = ''; }
+    if (player.hp <= 0 || player.respawnAt) { player.vx *= 0.82; player.vz *= 0.82; continue; }
+
+    const inputLength = Math.hypot(player.moveX, player.moveZ);
+    const canAct = now >= player.stunUntil;
+    const inRecovery = player.action && player.action !== 'hit' && now < player.actionUntil;
+    const moveScale = player.guard ? 0.66 : (player.beast ? 1.22 : 1);
+    const actionScale = inRecovery ? 0.34 : 1;
+    const topSpeed = player.style.speed * moveScale * actionScale;
+    const desiredX = canAct && inputLength > 0.06 ? player.moveX / inputLength * topSpeed : 0;
+    const desiredZ = canAct && inputLength > 0.06 ? player.moveZ / inputLength * topSpeed : 0;
+    const acceleration = inputLength > 0.06 && canAct ? 24 : 0;
+    const approach = Math.min(1, acceleration * dt);
+    if (now >= player.hitstopUntil) {
+      player.vx += (desiredX - player.vx) * (approach || (1 - Math.exp(-7.5 * dt)));
+      player.vz += (desiredZ - player.vz) * (approach || (1 - Math.exp(-7.5 * dt)));
+      player.x += player.vx * dt;
+      player.z += player.vz * dt;
     }
+    if (inputLength > 0.18 && canAct) {
+      const length = Math.max(1, inputLength);
+      const nextX = player.moveX / length; const nextZ = player.moveZ / length;
+      if (nextX * player.facingX + nextZ * player.facingZ > -0.22) {
+        player.facingX += (nextX - player.facingX) * Math.min(1, dt * 12);
+        player.facingZ += (nextZ - player.facingZ) * Math.min(1, dt * 12);
+        const facingLength = Math.hypot(player.facingX, player.facingZ) || 1;
+        player.facingX /= facingLength; player.facingZ /= facingLength;
+      }
+    }
+  }
+
+  for (let i = 0; i < fighters.length; i += 1) {
+    const a = fighters[i];
+    if (a.hp <= 0 || a.respawnAt) continue;
+    for (let j = i + 1; j < fighters.length; j += 1) {
+      const b = fighters[j];
+      if (b.hp <= 0 || b.respawnAt) continue;
+      let dx = b.x - a.x; let dz = b.z - a.z;
+      let distance = Math.hypot(dx, dz);
+      const minDistance = 0.92;
+      if (distance >= minDistance) continue;
+      if (distance < 0.001) { dx = 1; dz = 0; distance = 1; }
+      const nx = dx / distance; const nz = dz / distance;
+      const push = (minDistance - distance) * 0.52;
+      a.x -= nx * push; a.z -= nz * push;
+      b.x += nx * push; b.z += nz * push;
+      const closing = (a.vx - b.vx) * nx + (a.vz - b.vz) * nz;
+      if (closing > 0) { a.vx -= nx * closing * 0.28; a.vz -= nz * closing * 0.28; b.vx += nx * closing * 0.28; b.vz += nz * closing * 0.28; }
+    }
+  }
+
+  for (const player of fighters) {
+    const limit = 7.1;
+    if (player.x < -limit || player.x > limit) { player.x = Math.max(-limit, Math.min(limit, player.x)); player.vx *= -0.28; }
+    if (player.z < -limit || player.z > limit) { player.z = Math.max(-limit, Math.min(limit, player.z)); player.vz *= -0.28; }
+  }
+}
+
+function snapshot(room, now) {
+  const players = [...room.players.values()].map((player) => {
     return {
       id: player.id, name: player.name, color: player.color, style: player.style, x: player.x, z: player.z,
       facingX: player.facingX, facingZ: player.facingZ, hp: player.hp, meter: player.meter,
       beast: player.beast, score: player.score, respawnAt: player.respawnAt,
       guard: player.guard, action: player.actionUntil > now ? player.action : null,
+      actionAt: player.actionAt, actionUntil: player.actionUntil, attackMove: player.attackMove,
+      vx: player.vx, vz: player.vz, stunUntil: player.stunUntil,
       message: player.messageUntil > now ? player.message : '', host: player.host,
     };
   });
@@ -380,6 +476,7 @@ setInterval(() => {
   const now = Date.now();
   for (const room of rooms.values()) {
     if (room.phase === 'playing') {
+      stepRoom(room, now);
       const state = snapshot(room, now);
       for (const player of room.players.values()) send(player.client, state);
     } else if (room.phase === 'results') {
@@ -387,7 +484,7 @@ setInterval(() => {
       for (const player of room.players.values()) send(player.client, state);
     }
   }
-}, 66).unref();
+}, 33).unref();
 
 setInterval(() => {
   const now = Date.now();
@@ -413,3 +510,4 @@ server.listen(PORT, '0.0.0.0', () => {
   }
   console.log('  Keep this window open while friends play.\n');
 });
+
