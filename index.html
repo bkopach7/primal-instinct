@@ -1025,7 +1025,7 @@
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.16;
       renderer.shadowMap.enabled = true;
-      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.shadowMap.type = THREE.PCFShadowMap;
 
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0x0c111c);
@@ -1100,22 +1100,15 @@
           addMesh(world, box, neonRed, [x, .08, z], [sx, .06, sz], false);
         }
         const ring = new THREE.Mesh(new THREE.TorusGeometry(5.6, .025, 5, 120), goldMat); ring.rotation.x = Math.PI / 2; ring.position.y = .09; world.add(ring);
-        for (const side of [-1, 1]) {
-          for (let i = -1; i <= 1; i += 1) {
-            const x = side * 7.28; const z = i * 3.4;
-            addMesh(world, box, blackMat, [x, .68, z], [.34, 1.36, .34]);
-            addMesh(world, box, neonBlue, [x - side * .18, .72, z], [.035, .72, .18], false);
-          }
-          for (const z of [-7.1, 7.1]) addMesh(world, box, goldMat, [side * 7.25, .12, z], [.45, .18, .65]);
-        }
-        // Vermilion torii gate anchors the far side of the fighting floor.
+        // Keep landmarks beyond the camera orbit so they never cover a fighter.
+        // Vermilion torii gate anchors the distant side of the dojo.
         for (const x of [-2.75, 2.75]) {
-          addMesh(world, postGeometry, redMat, [x, 2.1, 7.3], [.9, 4.2, .9]);
-          addMesh(world, box, goldMat, [x, .23, 7.3], [1.22, .24, 1.22]);
+          addMesh(world, postGeometry, redMat, [x, 2.1, 14.5], [.9, 4.2, .9]);
+          addMesh(world, box, goldMat, [x, .23, 14.5], [1.22, .24, 1.22]);
         }
-        addMesh(world, box, redMat, [0, 4.2, 7.3], [7.7, .52, .78]);
-        addMesh(world, box, goldMat, [0, 3.82, 7.3], [6.55, .16, .8]);
-        addMesh(world, box, redMat, [0, 3.38, 7.3], [6.8, .24, .72]);
+        addMesh(world, box, redMat, [0, 4.2, 14.5], [7.7, .52, .78]);
+        addMesh(world, box, goldMat, [0, 3.82, 14.5], [6.55, .16, .8]);
+        addMesh(world, box, redMat, [0, 3.38, 14.5], [6.8, .24, .72]);
         // Moon, layered city blocks, and lanterns give the stage readable depth.
         addMesh(world, sphere, new THREE.MeshBasicMaterial({ color: 0xb94d43 }), [0, 10.5, 24], [4.4, 4.4, .28], false);
         addMesh(world, sphere, new THREE.MeshBasicMaterial({ color: 0x922e35, transparent: true, opacity: .16, depthWrite: false }), [0, 10.5, 24.3], [6.2, 6.2, .18], false);
@@ -1126,7 +1119,7 @@
             addMesh(world, box, i % 4 === 0 ? neonRed : neonBlue, [x + dx, .58 + floor * 1.05, z - .57], [.12, .27, .025], false);
           }
         }
-        for (const x of [-9.1, 9.1]) for (const z of [-4.8, 0, 4.8]) {
+        for (const x of [-16.5, 16.5]) for (const z of [-5, 5]) {
           const lantern = new THREE.Group(); lantern.position.set(x, 0, z); world.add(lantern);
           addMesh(lantern, postGeometry, blackMat, [0, 1.18, 0], [.24, 2.36, .24]);
           addMesh(lantern, box, redMat, [0, 2.5, 0], [.82, .7, .7]);
@@ -1141,9 +1134,9 @@
           const texture = new THREE.CanvasTexture(c); texture.colorSpace = THREE.SRGBColorSpace; return texture;
         };
         for (const [x, glyph, color] of [[-5.65, '牙', '#ed6648'], [5.65, '獣', '#64d1d3']]) {
-          addMesh(world, box, blackMat, [x, 3, 6.8], [.1, .7, .1]);
+          addMesh(world, box, blackMat, [x, 3, 13.8], [.1, .7, .1]);
           const sign = new THREE.Mesh(new THREE.PlaneGeometry(.8, 1.58), new THREE.MeshBasicMaterial({ map: bannerTexture(glyph, color), side: THREE.DoubleSide }));
-          sign.position.set(x, 2.45, 6.75); world.add(sign);
+          sign.position.set(x, 2.45, 13.75); world.add(sign);
         }
       }
       buildArena();
