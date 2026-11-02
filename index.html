@@ -677,13 +677,15 @@
       const haze = ctx.createLinearGradient(0, horizon - 50, 0, horizon + h * .18);
       haze.addColorStop(0, '#e4777e00'); haze.addColorStop(.46, '#ef9c8533'); haze.addColorStop(1, '#be677500');
       ctx.fillStyle = haze; ctx.fillRect(0, horizon - 50, w, h * .25);
-      const gateX = w * .5; const gateY = horizon + h * .02; const gateW = w * .46; const gateH = h * .34;
+      const gateX = w * .5; const gateY = h * .34; const gateW = w * .46; const gateH = h * .34;
       ctx.save(); ctx.globalAlpha = .83; ctx.fillStyle = '#22131b'; ctx.fillRect(gateX - gateW * .41, gateY - gateH * .2, gateW * .82, gateH * 1.22);
       ctx.fillStyle = '#8d3440'; ctx.fillRect(gateX - gateW * .38, gateY, gateW * .075, gateH); ctx.fillRect(gateX + gateW * .305, gateY, gateW * .075, gateH);
       ctx.strokeStyle = '#d7594d'; ctx.lineWidth = Math.max(7, h * .013); ctx.lineCap = 'round';
       ctx.beginPath(); ctx.moveTo(gateX - gateW * .52, gateY); ctx.quadraticCurveTo(gateX, gateY - gateH * .17, gateX + gateW * .52, gateY); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(gateX - gateW * .44, gateY + gateH * .19); ctx.lineTo(gateX + gateW * .44, gateY + gateH * .19); ctx.stroke();
-      ctx.strokeStyle = '#f6ba7355'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(gateX - gateW * .34, gateY + gateH * .23); ctx.lineTo(gateX + gateW * .34, gateY + gateH * .23); ctx.stroke(); ctx.restore();
+      ctx.strokeStyle = '#f6ba7355'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(gateX - gateW * .34, gateY + gateH * .23); ctx.lineTo(gateX + gateW * .34, gateY + gateH * .23); ctx.stroke();
+      ctx.fillStyle = '#f4cc97'; ctx.font = '900 ' + Math.max(9, h * .012) + 'px system-ui'; ctx.textAlign = 'center'; ctx.shadowColor = '#f5a66e'; ctx.shadowBlur = 9;
+      ctx.fillText('KAGURA  ·  NIGHT CIRCUIT', gateX, gateY + gateH * .14); ctx.shadowBlur = 0; ctx.restore();
       for (let i = 0; i < 7; i += 1) {
         const x = w * (.09 + i * .137); const sway = Math.sin(time * .001 + i * 1.7) * 5;
         ctx.strokeStyle = '#090b12'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, horizon - 22); ctx.lineTo(x + sway, horizon + h * .1); ctx.stroke();
@@ -705,8 +707,9 @@
       }
       ctx.strokeStyle = '#f7c47b68'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(w * .5, h * .79, w * .25, h * .095, 0, 0, Math.PI * 2); ctx.stroke();
       ctx.strokeStyle = '#f7c47b25'; ctx.lineWidth = 1; ctx.beginPath(); ctx.ellipse(w * .5, h * .79, w * .19, h * .069, 0, 0, Math.PI * 2); ctx.stroke();
-      ctx.fillStyle = '#f4c477'; ctx.globalAlpha = .72; ctx.font = '900 ' + Math.max(9, h * .014) + 'px system-ui'; ctx.textAlign = 'center'; ctx.fillText('神 · KAGURA NIGHT CIRCUIT · 神', w * .5, stageTop - 10); ctx.globalAlpha = 1; ctx.restore();
+      ctx.globalAlpha = 1; ctx.restore();
       ctx.strokeStyle = '#e69a694d'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(w * .31, stageTop); ctx.lineTo(-w * .12, h * 1.06); ctx.moveTo(w * .69, stageTop); ctx.lineTo(w * 1.12, h * 1.06); ctx.stroke();
+      ctx.save(); ctx.globalAlpha = .36; ctx.fillStyle = '#b8424b'; ctx.fillRect(gateX - gateW * .38, gateY, gateW * .075, stageTop - gateY); ctx.fillRect(gateX + gateW * .305, gateY, gateW * .075, stageTop - gateY); ctx.restore();
       for (let i = 0; i < 24; i += 1) {
         const seed = i * 71.37; const x = (Math.sin(seed) * .5 + .5) * w + Math.sin(time * .0005 + seed) * 22;
         const y = ((Math.cos(seed * .7) * .5 + .5) * h + (time * (.012 + (i % 4) * .004) + seed * 31) % h);
@@ -720,7 +723,7 @@
       const grad = ctx.createLinearGradient(ax - width, ay, bx + width, by); grad.addColorStop(0, '#181722'); grad.addColorStop(.42, color); grad.addColorStop(1, '#29212b');
       ctx.strokeStyle = grad; ctx.lineWidth = width; ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
       ctx.strokeStyle = highlight; ctx.globalAlpha = .72; ctx.lineWidth = Math.max(2, width * .13); ctx.beginPath(); ctx.moveTo(ax - width * .14, ay); ctx.lineTo(bx - width * .14, by); ctx.stroke(); ctx.globalAlpha = 1;
-      ctx.fillStyle = '#b78a72'; ctx.beginPath(); ctx.arc((ax + bx) * .5, (ay + by) * .5, width * .31, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ae786a'; ctx.beginPath(); ctx.arc(bx, by, width * .26, 0, Math.PI * 2); ctx.fill();
     }
     function drawFighter(x, groundY, scale, player, local, time) {
       const alpha = player.respawnAt ? .3 + Math.sin(time * .018) * .12 : 1; const color = player.color || '#ed593c'; const species = player.style?.beast || 'Wolf';
@@ -765,6 +768,8 @@
       ctx.fillStyle = '#bd8957'; ctx.beginPath(); ctx.moveTo(-27, -68); ctx.lineTo(28, -68); ctx.lineTo(23, -58); ctx.lineTo(-23, -58); ctx.closePath(); ctx.fill();
       ctx.fillStyle = beast ? color : '#8b3540'; ctx.beginPath(); ctx.moveTo(-35, -73); ctx.quadraticCurveTo(0, -64, 35, -73); ctx.lineTo(31, -61); ctx.quadraticCurveTo(0, -52, -31, -61); ctx.closePath(); ctx.fill();
       ctx.strokeStyle = '#f4c981'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-19, -65); ctx.lineTo(19, -65); ctx.stroke();
+      const crest = species === 'Tiger' ? '虎' : species === 'Boar' ? '猪' : species === 'Fox' ? '狐' : '狼';
+      ctx.save(); ctx.globalAlpha = .82; ctx.fillStyle = '#f0c983'; ctx.font = '900 17px Georgia'; ctx.textAlign = 'center'; ctx.fillText(crest, 0, -83); ctx.restore();
       for (const side of [-1, 1]) { ctx.fillStyle = beast ? color : '#8c4d4d'; ctx.strokeStyle = '#13111a'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(side * 20, -108); ctx.lineTo(side * 39, -103); ctx.lineTo(side * 47, -88); ctx.lineTo(side * 30, -78); ctx.lineTo(side * 18, -90); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.strokeStyle = '#f0c57d'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(side * 27, -102); ctx.lineTo(side * 39, -91); ctx.stroke(); }
       const guard = player.guard && !attacking && !hit; const reach = swing * (heavy ? 1.1 : .9);
       const armL = guard ? { ex: -31, ey: -103, hx: -15, hy: -119 } : { ex: -38 - reach * 3, ey: -82 - reach * 11, hx: -48 - reach * 3, hy: -58 - reach * 44 };
