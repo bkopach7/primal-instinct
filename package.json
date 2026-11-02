@@ -1,0 +1,12 @@
+{
+  "name": "primal-instinct",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Room-code real-time party fighter",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
