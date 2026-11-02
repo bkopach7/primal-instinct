@@ -335,15 +335,17 @@ function stepRoom(room, now) {
       player.x += player.vx * dt;
       player.z += player.vz * dt;
     }
-    if (inputLength > 0.18 && canAct) {
-      const length = Math.max(1, inputLength);
-      const nextX = player.moveX / length; const nextZ = player.moveZ / length;
-      if (nextX * player.facingX + nextZ * player.facingZ > -0.22) {
-        player.facingX += (nextX - player.facingX) * Math.min(1, dt * 12);
-        player.facingZ += (nextZ - player.facingZ) * Math.min(1, dt * 12);
-        const facingLength = Math.hypot(player.facingX, player.facingZ) || 1;
-        player.facingX /= facingLength; player.facingZ /= facingLength;
-      }
+    let focus = null; let focusDistance = Infinity;
+    for (const opponent of fighters) {
+      if (opponent.id === player.id || opponent.hp <= 0 || opponent.respawnAt) continue;
+      const dx = opponent.x - player.x; const dz = opponent.z - player.z; const distance = Math.hypot(dx, dz);
+      if (distance < focusDistance) { focus = { x: dx / (distance || 1), z: dz / (distance || 1) }; focusDistance = distance; }
+    }
+    if (focus && canAct) {
+      player.facingX += (focus.x - player.facingX) * Math.min(1, dt * 15);
+      player.facingZ += (focus.z - player.facingZ) * Math.min(1, dt * 15);
+      const facingLength = Math.hypot(player.facingX, player.facingZ) || 1;
+      player.facingX /= facingLength; player.facingZ /= facingLength;
     }
   }
 
