@@ -31,6 +31,33 @@
     .style-option strong{display:block;font-size:9px;line-height:1.3;letter-spacing:.08em;text-transform:uppercase}.style-option small{display:block;font-size:7px;letter-spacing:.14em;color:#9a8d85;margin-top:2px}
     .player-identity{display:flex;flex-direction:column;gap:2px}.player-style{font-size:7px;letter-spacing:.12em;text-transform:uppercase;color:#a89a91}
     @media(max-width:600px){.style-option{min-height:47px;padding:4px 7px;gap:7px}.style-sigil{width:27px;height:27px;font-size:16px}.style-option strong{font-size:8px}.style-option small{font-size:6px}}
+    /* Duel HUD: high contrast, compact readouts keep both fighters and the arena visible. */
+    .opponent-hud{position:absolute;right:24px;bottom:24px;width:min(350px,40vw);pointer-events:none;text-align:right}
+    .opponent-hud .player-label{flex-direction:row-reverse}
+    .opponent-hud .bar-wrap,.opponent-hud .meter-wrap{transform:skew(12deg)}
+    .opponent-hud .health-fill{margin-left:auto;background:linear-gradient(90deg,#f47a55,#b8373c)}
+    .opponent-hud .meter-fill{margin-left:auto;background:linear-gradient(90deg,#ffd47e,#d48137)}
+    .fighter-hud{filter:drop-shadow(0 5px 16px #000b)}
+    .bar-wrap{height:18px;padding:2px;background:#08090fe8;border-color:#f2e8d25c;box-shadow:0 0 0 1px #09090c}
+    .health-fill{position:relative;box-shadow:inset 0 1px #ffffff55,0 0 14px #eb53477a}
+    .meter-wrap{height:9px;background:#08090fe8;border-color:#f2e8d244}
+    .controls-hint{bottom:105px;right:24px;text-align:left;min-width:245px;border-color:#e9c17a55;color:#e1d7cc}
+    .controls-hint .move-route{display:block;margin-top:4px;color:#ffd890;font-weight:800}
+    .hud-brand{font-size:22px;letter-spacing:.11em}
+    .round-time{padding:4px 12px 8px;border:1px solid #e5c17d4d;background:linear-gradient(#16151bd9,#0a0b10d9);clip-path:polygon(10% 0,90% 0,100% 100%,0 100%)}
+    .round-time small{font-size:9px}
+    .style-option{position:relative;overflow:hidden}
+    .style-option:after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 20%,#fff1 48%,transparent 68%);transform:translateX(-120%);transition:transform .35s}
+    .style-option:hover:after,.style-option[aria-pressed="true"]:after{transform:translateX(120%)}
+    @media(max-width:850px){.opponent-hud{bottom:215px;right:18px;width:min(300px,39vw)}.controls-hint{display:block;bottom:calc(164px + var(--safe));right:50%;transform:translateX(50%);padding:7px 10px;min-width:0;text-align:center;font-size:8px;line-height:1.45}.controls-hint .move-route{display:none}.bottom-hud{width:min(300px,39vw)}}
+    @media(max-width:600px){.opponent-hud{bottom:calc(173px + var(--safe));right:14px;width:min(265px,39vw)}.controls-hint{bottom:calc(129px + var(--safe));font-size:7px;padding:5px 7px}.bottom-hud{width:min(265px,39vw)}.bar-wrap{height:13px}.meter-wrap{height:7px}.player-label{font-size:8px}.player-label strong{font-size:10px}.meter-caption{font-size:6px}.hud-brand{font-size:17px}.hud-brand span{font-size:10px}}
+    .target-switch{position:absolute;right:24px;top:83px;padding:8px 11px;border:1px solid #e8c48066;background:#111119c9;color:#f4e3c8;font-size:9px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;pointer-events:auto;box-shadow:0 4px 14px #0008}
+    .target-switch:hover{border-color:#f4d392;background:#2b1e22}
+    @media(max-width:850px){.target-switch{top:103px;right:16px;padding:6px 8px;font-size:8px}}
+    @media(max-width:600px){.bottom-hud,.opponent-hud{bottom:calc(194px + var(--safe))}.touch-controls{height:168px}.controls-hint{display:none}.touch-actions{grid-template-rows:repeat(3,44px)}.touch-btn{font-size:7px}.touch-btn.attack{font-size:8px}}
+    @media(orientation:portrait) and (max-width:600px){.touch-controls{height:160px}.touch-actions{grid-template-rows:repeat(3,41px)}}
+    .combo-callout{font-style:italic;letter-spacing:.04em;text-shadow:2px 2px #6d232a,0 5px 18px #000;filter:drop-shadow(0 0 10px #f38b4670)}
+    .center-message{padding:18px 24px;background:linear-gradient(90deg,transparent,#141116d9 22%,#141116e8 78%,transparent);}
   </style>
 </head>
 <body>
@@ -80,7 +107,7 @@
             <button class="btn" id="showJoin">Join a room</button>
           </div>
           <button class="btn practice-button" id="practiceBtn">Practice vs CPU</button>
-          <p class="practice-note">Solo practice starts right away. WASD moves, attacks lock onto the nearest fighter.</p>
+          <p class="practice-note">Best-of-three dojo duel. Learn chains, launchers, guard, timed evades, target lock, and Beast shifts. Keyboard, gamepad, or touch.</p>
           <div class="join-line hidden" id="joinLine">
             <input class="text-field room-input" id="roomCodeInput" maxlength="4" placeholder="CODE" aria-label="Room code">
             <button class="btn" id="joinRoom">Enter room</button>
@@ -136,13 +163,21 @@
       <div class="meter-wrap" id="meterWrap"><div class="meter-fill" id="meterFill"></div></div>
       <div class="meter-caption"><span>Beast meter</span><span id="meterText">0% · Shift at 35%</span></div>
     </div>
-      <div class="controls-hint"><b>WASD</b> move around target &nbsp; <b>J</b> light &nbsp; <b>K</b> heavy<br><b>L</b> guard &nbsp; <b>Shift</b> beast &nbsp; <b>E</b> primal drive</div>
+    <div class="opponent-hud fighter-hud" id="opponentHud">
+      <div class="player-label"><strong id="opponentName">TARGET</strong><span id="opponentForm">Locked on</span></div>
+      <div class="bar-wrap"><div class="health-fill" id="opponentHealthFill"></div></div>
+      <div class="meter-wrap" id="opponentMeterWrap"><div class="meter-fill" id="opponentMeterFill"></div></div>
+      <div class="meter-caption"><span id="opponentMeterText">BEAST METER</span><span id="opponentScore">0 KOs</span></div>
+    </div>
+    <button class="target-switch" id="targetSwitch">Target · Q</button>
+    <div class="controls-hint"><b>WASD / stick</b> move · <b id="targetHelp">Q target</b> · <b>J</b> quick · <b>K</b> heavy · <b>U</b> launch<br><b>L</b> guard · <b>Space</b> evade · <b>R</b> shift · <b>E</b> drive<span class="move-route">CHAIN: J → J → K &nbsp; / &nbsp; U → J or K</span></div>
     <button class="sound-toggle" id="soundToggle">Sound: off</button>
     <div class="touch-controls" id="touchControls">
       <div class="stick-base" id="stickBase"><div class="stick-knob" id="stickKnob"></div></div>
       <div class="touch-actions">
         <button class="touch-btn attack" data-action="light">Light</button><button class="touch-btn attack" data-action="heavy">Heavy</button><button class="touch-btn drive" data-action="finisher">Drive</button>
-        <button class="touch-btn" data-action="guard">Guard</button><button class="touch-btn beast" data-action="transform">Shift</button>
+        <button class="touch-btn" data-action="guard">Guard</button><button class="touch-btn" data-action="evade">Evade</button><button class="touch-btn beast" data-action="transform">Shift</button>
+        <button class="touch-btn attack" data-action="launcher">Launch</button><button class="touch-btn attack" data-action="sweep">Sweep</button>
       </div>
     </div>
     <div class="result-panel hidden" id="resultPanel">
@@ -176,6 +211,9 @@
     let offlineMode = false;
     let offlineFinished = false;
     let offlineEndsAt = 0;
+    let offlineRound = 1;
+    let offlineRoundEndsAt = 0;
+    let offlineRoundWinner = null;
     let offlineLastStep = 0;
     let offlineLastHud = 0;
     let offlineResultsShown = false;
@@ -333,7 +371,7 @@
       { id: 'veil-fox', name: 'Veil Fox', beast: 'Fox', color: '#bd85eb', speed: 3.55, light: 7, heavy: 12, beastPower: 1.16, meterGain: 1.22, guardDamage: 0.42, chainPower: 6 },
     ];
     function makeOfflineFighter(id, name, style, isBot = false) {
-      return { id, name, style, color: style.color, x: 0, z: 0, vx: 0, vz: 0, stunUntil: 0, hitstopUntil: 0, facingX: 0, facingZ: 1, hp: 100, meter: 0, beast: false, score: 0, respawnAt: 0, lightAt: 0, heavyAt: 0, finisherAt: 0, comboAt: 0, comboStep: 0, attackComboStep: 0, moveX: 0, moveZ: 0, guard: false, action: null, actionAt: 0, actionUntil: 0, attackAt: 0, attackResolved: true, attackMove: '', message: '', messageUntil: 0, isBot, nextBrainAt: 0, nextActionAt: 0 };
+      return { id, name, style, color: style.color, targetId: '', x: 0, z: 0, vx: 0, vz: 0, stunUntil: 0, hitstopUntil: 0, facingX: 0, facingZ: 1, hp: 100, meter: 0, beast: false, score: 0, roundWins: 0, respawnAt: 0, lightAt: 0, heavyAt: 0, finisherAt: 0, evadeAt: 0, evadeUntil: 0, evadeCounterUntil: 0, airUntil: 0, comboAt: 0, comboStep: 0, attackComboStep: 0, moveX: 0, moveZ: 0, guard: false, action: null, actionAt: 0, actionUntil: 0, attackAt: 0, attackResolved: true, attackMove: '', message: '', messageUntil: 0, isBot, nextBrainAt: 0, nextActionAt: 0 };
     }
     function startOfflineMatch() {
       myName = ($('#playerName').value || myName || 'Fighter').trim().slice(0, 16) || 'Fighter';
@@ -344,6 +382,9 @@
       players = [makeOfflineFighter(selfId, myName, picked)];
       const rival = offlineFighters.find((fighter) => fighter.id !== picked.id) || offlineFighters[1];
       players.push(makeOfflineFighter('cpu-rival', 'Dojo Rival', rival, true));
+      players[0].targetId = players[1].id; players[1].targetId = players[0].id;
+      offlineRound = 1;
+      for (const player of players) player.roundWins = 0;
       lobbyPlayers = players.map((p) => ({ id: p.id, name: p.name, color: p.color, style: p.style, host: p.id === selfId }));
       startOfflineRound();
     }
@@ -353,7 +394,7 @@
         const angle = (index / players.length) * Math.PI * 2;
         player.x = Math.cos(angle) * 3.2; player.z = Math.sin(angle) * 3.2;
         player.facingX = -Math.cos(angle); player.facingZ = -Math.sin(angle);
-        player.hp = 100; player.meter = 0; player.beast = false; player.score = 0; player.respawnAt = 0;
+        player.hp = 100; player.meter = 0; player.beast = false; player.score = 0; player.respawnAt = 0; player.airUntil = 0; player.evadeUntil = 0; player.evadeAt = 0; player.evadeCounterUntil = 0;
         player.moveX = 0; player.moveZ = 0; player.guard = false; player.action = null;
         player.vx = 0; player.vz = 0; player.stunUntil = 0; player.hitstopUntil = 0;
         player.actionAt = 0; player.actionUntil = 0; player.attackAt = 0; player.attackResolved = true;
@@ -361,15 +402,17 @@
         player.attackMove = ''; player.lightAt = 0; player.heavyAt = 0; player.finisherAt = 0; player.comboAt = 0; player.comboStep = 0;
         player.nextBrainAt = 0; player.nextActionAt = 0; index += 1;
       }
-      winnerIds = []; timeLeft = 180; offlineFinished = false; offlineResultsShown = false;
-      offlineEndsAt = performance.now() + 180000; offlineLastStep = performance.now();
+      winnerIds = []; timeLeft = 60; offlineFinished = false; offlineResultsShown = false; offlineRoundEndsAt = 0; offlineRoundWinner = null;
+      offlineEndsAt = performance.now() + 60000; offlineLastStep = performance.now();
       $('#resultPanel').classList.add('hidden');
       setScreen('game'); updateHud();
-      $('#centerMessage').innerHTML = 'PRACTICE BOUT<small>One CPU rival · WASD move · J/K combo · Shift transforms · E primal drive</small>';
+      $('#centerMessage').innerHTML = `ROUND ${offlineRound} · FIGHT<small>J → J → K chain · U launches · Space evades · R shifts</small>`;
       $('#centerMessage').classList.remove('hidden');
-      setTimeout(() => { if (!localPlayer()?.respawnAt) $('#centerMessage').classList.add('hidden'); }, 1800);
+      setTimeout(() => { if (!offlineRoundEndsAt && !localPlayer()?.respawnAt) $('#centerMessage').classList.add('hidden'); }, 2400);
     }
     function offlineTarget(attacker, range) {
+      const locked = players.find((candidate) => candidate.id === attacker.targetId && candidate.id !== attacker.id && candidate.hp > 0 && !candidate.respawnAt);
+      if (locked) { const distance = Math.hypot(locked.x - attacker.x, locked.z - attacker.z); if (distance < range) return { player: locked, distance }; }
       let target = null; let best = range;
       for (const candidate of players) {
         if (candidate.id === attacker.id || candidate.hp <= 0 || candidate.respawnAt) continue;
@@ -379,6 +422,12 @@
       return target ? { player: target, distance: best } : null;
     }
     function offlineHit(attacker, victim, damage, knockback, now) {
+      if (victim.evadeUntil > now) {
+        victim.message = 'PERFECT EVADE'; victim.messageUntil = now + 650;
+        victim.meter = Math.min(100, victim.meter + 7);
+        victim.evadeCounterUntil = now + 900;
+        return;
+      }
       if (attacker.isBot) damage *= .42;
       const guarded = victim.guard && now >= victim.stunUntil;
       if (guarded) damage *= victim.style.guardDamage;
@@ -392,8 +441,16 @@
       victim.stunUntil = now + (guarded ? 95 : (knockback > .8 ? 420 : 245));
       victim.hitstopUntil = now + (guarded ? 34 : 74); attacker.hitstopUntil = Math.max(attacker.hitstopUntil, now + 38);
       victim.action = 'hit'; victim.actionAt = now; victim.actionUntil = now + (guarded ? 170 : 390);
+      if (knockback >= 1.35 && !guarded) victim.airUntil = now + 760;
       spawnHitFx(victim, guarded ? .55 : Math.max(.8, damage / 10));
       if (victim.hp <= 0) {
+        if (offlineMode && players.length === 2) {
+          victim.respawnAt = now + 1900;
+          offlineRoundWinner = attacker.id; offlineRoundEndsAt = now + 1900;
+          attacker.message = `ROUND ${offlineRound} WON`; attacker.messageUntil = offlineRoundEndsAt;
+          victim.message = 'KNOCKOUT'; victim.messageUntil = offlineRoundEndsAt;
+          return;
+        }
         attacker.score += 1; victim.respawnAt = now + 1800; victim.beast = false;
         victim.message = `KO by ${attacker.name}`; victim.messageUntil = now + 1700;
         attacker.message = '+1 KO'; attacker.messageUntil = now + 1000;
@@ -401,41 +458,57 @@
     }
     function offlineAttack(player, move, now) {
       const isLight = move === 'light';
-      const cooldown = isLight ? (player.beast ? 215 : 260) : (player.beast ? 430 : 520);
-      const last = isLight ? player.lightAt : player.heavyAt;
+      const cooldowns = { light: 245, heavy: 465, launcher: 650, sweep: 570 };
+      const cooldown = (cooldowns[move] || 300) * (player.beast ? .86 : 1);
+      const last = player[`${move}At`] || 0;
       if (now - last < cooldown || player.hp <= 0 || player.respawnAt || offlineFinished) return;
-      if (isLight) player.lightAt = now; else player.heavyAt = now;
-      if (now - player.comboAt > 1200) player.comboStep = 0;
+      if (offlineRoundEndsAt) return;
+      player[`${move}At`] = now;
+      if (now - player.comboAt > 900) player.comboStep = 0;
       const nextComboStep = player.comboStep + 1;
-      const chainFinish = !isLight && nextComboStep >= 3;
-      const target = offlineTarget(player, player.beast ? 4.1 : 3.5);
+      const chainFinish = move === 'heavy' && nextComboStep >= 3;
+      const target = offlineTarget(player, 99);
       if (target) { player.facingX = (target.player.x - player.x) / target.distance; player.facingZ = (target.player.z - player.z) / target.distance; }
-      player.action = player.beast ? (isLight ? 'beastLight' : 'beastHeavy') : (isLight ? 'light' : 'heavy');
-      player.actionAt = now; player.actionUntil = now + (isLight ? 350 : 560);
-      player.attackAt = now + (isLight ? 105 : 190); player.attackResolved = false;
-      player.attackMove = chainFinish ? 'finisher' : move;
+      const timing = { light: [340, 94], heavy: [500, 175], launcher: [570, 210], sweep: [535, 195] }[move] || [400, 120];
+      player.action = player.beast ? (move === 'light' ? 'beastLight' : (move === 'heavy' ? 'beastHeavy' : move)) : move;
+      player.actionAt = now; player.actionUntil = now + timing[0];
+      player.attackAt = now + timing[1]; player.attackResolved = false;
+      player.attackMove = chainFinish ? 'breaker' : move;
       player.attackComboStep = nextComboStep;
-      const lunge = isLight ? 2.1 : 3.15;
+      const lunge = { light: 1.85, heavy: 2.45, launcher: 2.05, sweep: 1.65 }[move] || 1.8;
       player.vx += player.facingX * lunge; player.vz += player.facingZ * lunge;
     }
     function resolveOfflineAttack(player, now) {
       player.attackResolved = true;
-      const isLight = player.attackMove === 'light'; const chainFinish = player.attackMove === 'finisher';
-      const target = offlineTarget(player, player.beast ? (isLight ? 3.65 : 4.15) : (isLight ? 3.15 : 3.7));
+      const move = player.attackMove === 'breaker' ? 'heavy' : player.attackMove;
+      const isLight = move === 'light'; const chainFinish = player.attackMove === 'breaker';
+      const ranges = { light: 2.6, heavy: 3.05, launcher: 2.75, sweep: 2.55 };
+      const target = offlineTarget(player, (ranges[move] || 2.7) + (player.beast ? .35 : 0));
       if (!target) { player.message = 'WHIFF'; player.messageUntil = now + 450; return; }
       player.comboStep = player.attackComboStep; player.comboAt = now;
       player.facingX = (target.player.x - player.x) / target.distance; player.facingZ = (target.player.z - player.z) / target.distance;
-      const chainBonus = chainFinish ? player.style.chainPower : Math.min(3, (player.attackComboStep - 1) * 1.5);
-      const damage = ((isLight ? player.style.light : player.style.heavy) + chainBonus) * (player.beast ? player.style.beastPower : 1);
-      offlineHit(player, target.player, damage, chainFinish ? 1.15 : (isLight ? .52 : 1.02), now);
-      player.message = chainFinish ? 'CHAIN FINISH!' : `${player.attackComboStep} HIT`; player.messageUntil = now + 700;
+      const baseDamage = { light: player.style.light * .72, heavy: player.style.heavy * .76, launcher: 8.5, sweep: 8 }[move] || 7;
+      const airborne = target.player.airUntil > now;
+      const chainBonus = chainFinish ? player.style.chainPower * .72 : Math.min(3, (player.attackComboStep - 1) * 1.15);
+      const punish = player.evadeCounterUntil > now ? 1.3 : 1;
+      const damage = (baseDamage + chainBonus) * (player.beast ? player.style.beastPower : 1) * (airborne ? .82 : 1) * punish;
+      const force = chainFinish ? 1.45 : (move === 'launcher' ? 1.38 : (move === 'sweep' ? 1.23 : (isLight ? .52 : 1.02)));
+      offlineHit(player, target.player, damage, force, now);
+      player.message = punish > 1 ? 'EVADE PUNISH!' : (chainFinish ? 'BEAST BREAKER!' : (airborne ? `AIR JUGGLE · ${player.attackComboStep}` : `${player.attackComboStep} HIT`)); player.messageUntil = now + 700;
       if (player.attackComboStep >= 3) player.comboStep = 0;
     }
     function offlineAction(type, data) {
       const player = localPlayer(); if (!player || offlineFinished) return;
       const now = performance.now();
       if (type === 'input') { player.moveX = Number(data.x) || 0; player.moveZ = Number(data.z) || 0; player.guard = Boolean(data.guard); }
-      if (type === 'attack') offlineAttack(player, data.move === 'heavy' ? 'heavy' : 'light', now);
+      if (type === 'target') player.targetId = String(data.targetId || '');
+      if (type === 'attack') offlineAttack(player, ['light', 'heavy', 'launcher', 'sweep'].includes(data.move) ? data.move : 'light', now);
+      if (type === 'evade' && !player.respawnAt && now - player.evadeAt >= 820 && now >= player.stunUntil && !offlineRoundEndsAt) {
+        player.evadeAt = now; player.evadeUntil = now + 190; player.action = 'evade'; player.actionAt = now; player.actionUntil = now + 340;
+        let dx = player.moveX; let dz = player.moveZ; const len = Math.hypot(dx, dz);
+        if (len < .12) { dx = player.facingZ; dz = -player.facingX; } else { dx /= len; dz /= len; }
+        player.vx = dx * 4.6; player.vz = dz * 4.6;
+      }
       if (type === 'transform' && !player.respawnAt) {
         if (player.beast) { player.beast = false; player.message = 'HUMAN FORM'; }
         else if (player.meter >= 35) { player.beast = true; player.message = 'BEAST SHIFT'; }
@@ -446,11 +519,25 @@
         player.message = 'PRIMAL DRIVE!'; player.messageUntil = now + 900;
         for (const target of players) if (target.id !== player.id && !target.respawnAt && target.hp > 0 && Math.hypot(target.x - player.x, target.z - player.z) < 3.8) offlineHit(player, target, 21 * player.style.beastPower, 1.15, now);
       }
-      if (type === 'rematch' && offlineFinished) startOfflineRound();
+      if (type === 'rematch' && offlineFinished) {
+        offlineRound = 1; for (const fighter of players) fighter.roundWins = 0; startOfflineRound();
+      }
     }
     function offlineStep() {
       if (!offlineMode || phase !== 'game' || offlineFinished) return;
       const now = performance.now(); const dt = Math.min(.08, Math.max(.001, (now - offlineLastStep) / 1000)); offlineLastStep = now;
+      if (offlineRoundEndsAt) {
+        if (now >= offlineRoundEndsAt) {
+          const winner = players.find((player) => player.id === offlineRoundWinner);
+          if (winner) winner.roundWins = (winner.roundWins || 0) + 1;
+          if (winner && winner.roundWins >= 2) {
+            offlineFinished = true; winnerIds = [winner.id]; showResults();
+          } else {
+            offlineRound += 1; startOfflineRound();
+          }
+        }
+        return;
+      }
       for (const player of players) {
         if (player.respawnAt && now >= player.respawnAt) {
           player.hp = 100; player.meter = Math.max(0, player.meter - 12); player.respawnAt = 0;
@@ -481,15 +568,18 @@
         const inputLength = Math.hypot(player.moveX, player.moveZ);
         const canAct = now >= player.stunUntil;
         const inRecovery = player.action && player.action !== 'hit' && now < player.actionUntil;
-        const speed = player.style.speed * (player.isBot ? .72 : 1) * (player.guard ? .66 : (player.beast ? 1.22 : 1)) * (inRecovery ? .34 : 1);
+        const speed = player.style.speed * (player.isBot ? .72 : 1) * (player.guard ? .66 : (player.beast ? 1.22 : 1)) * (inRecovery ? .44 : 1);
         const desiredX = canAct && inputLength > .06 ? player.moveX / inputLength * speed : 0;
         const desiredZ = canAct && inputLength > .06 ? player.moveZ / inputLength * speed : 0;
-        const approach = Math.min(1, (inputLength > .06 && canAct ? 24 : 0) * dt);
-        if (now >= player.hitstopUntil) {
-          player.vx += (desiredX - player.vx) * (approach || (1 - Math.exp(-7.5 * dt)));
-          player.vz += (desiredZ - player.vz) * (approach || (1 - Math.exp(-7.5 * dt)));
+        const approach = Math.min(1, (inputLength > .06 && canAct ? 30 : 0) * dt);
+        if (now < player.actionUntil && player.action === 'evade') {
+          // The initial dodge burst owns the movement for a few frames, then normal steering resumes.
+        } else if (now >= player.hitstopUntil) {
+          player.vx += (desiredX - player.vx) * (approach || (1 - Math.exp(-12 * dt)));
+          player.vz += (desiredZ - player.vz) * (approach || (1 - Math.exp(-12 * dt)));
           player.x += player.vx * dt; player.z += player.vz * dt;
         }
+        if (now < player.actionUntil && player.action === 'evade') { player.x += player.vx * dt; player.z += player.vz * dt; }
         const focus = offlineTarget(player, 99);
         if (focus && canAct) {
           const dx = (focus.player.x - player.x) / (focus.distance || 1);
@@ -519,10 +609,12 @@
       }
       timeLeft = Math.max(0, Math.ceil((offlineEndsAt - now) / 1000));
       if (timeLeft <= 0) {
-        offlineFinished = true;
-        const ranked = players.slice().sort((a, b) => b.score - a.score || b.hp - a.hp);
-        const top = ranked[0]; winnerIds = top ? ranked.filter((p) => p.score === top.score && p.hp === top.hp).map((p) => p.id) : [];
-        showResults();
+        const ranked = players.slice().sort((a, b) => b.hp - a.hp);
+        const top = ranked[0];
+        offlineRoundWinner = top && ranked[1] && top.hp === ranked[1].hp ? null : top?.id;
+        offlineRoundEndsAt = now + 1800;
+        $('#centerMessage').innerHTML = `${offlineRoundWinner ? `${top.name} TAKES THE ROUND` : 'ROUND DRAW'}<small>Next round in a moment</small>`;
+        $('#centerMessage').classList.remove('hidden');
       }
       if (now - offlineLastHud > 100) { offlineLastHud = now; updateHud(); }
     }
@@ -540,7 +632,11 @@
       if (offlineMode) { offlineAction(type, data); return; }
       if (socket && socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type, ...data }));
     }
-    function attack(move) { send('attack', { move }); playSound(move === 'heavy' ? 110 : 220, .08, 'triangle'); }
+    function attack(move) {
+      send('attack', { move });
+      const tone = { light: 250, heavy: 125, launcher: 185, sweep: 145 }[move] || 220;
+      playSound(tone, .075, move === 'heavy' || move === 'sweep' ? 'triangle' : 'sine');
+    }
 
     $('#createRoom').addEventListener('click', () => connect({ type: 'create' }));
     $('#practiceBtn').addEventListener('click', startOfflineMatch);
@@ -560,21 +656,30 @@
     $('#rematch').addEventListener('click', () => send('rematch'));
     $('#backToLobby').addEventListener('click', leaveRoom);
     $('#soundToggle').addEventListener('click', () => { soundOn = !soundOn; $('#soundToggle').textContent = `Sound: ${soundOn ? 'on' : 'off'}`; if (soundOn) playSound(520, .12, 'sine'); });
+    $('#targetSwitch').addEventListener('click', cycleTarget);
 
     function localPlayer() { return players.find((player) => player.id === selfId); }
+    function cycleTarget() {
+      const self = localPlayer(); if (!self) return;
+      const candidates = players.filter((player) => player.id !== self.id && player.hp > 0 && !player.respawnAt).sort((a, b) => Math.hypot(a.x - self.x, a.z - self.z) - Math.hypot(b.x - self.x, b.z - self.z));
+      if (!candidates.length) return;
+      const current = candidates.findIndex((player) => player.id === self.targetId);
+      const target = candidates[(current + 1) % candidates.length];
+      send('target', { targetId: target.id }); showToast(`Target locked: ${target.name}`);
+    }
     function localMove() {
       let x = 0; let z = 0;
       if (keys.has('a') || keys.has('arrowleft')) x -= 1;
       if (keys.has('d') || keys.has('arrowright')) x += 1;
       if (keys.has('w') || keys.has('arrowup')) z += 1;
       if (keys.has('s') || keys.has('arrowdown')) z -= 1;
-      x += stick.x; z += stick.z;
+      x += stick.x + gamepadStick.x; z += stick.z + gamepadStick.z;
       const length = Math.hypot(x, z);
       if (length > 1) { x /= length; z /= length; }
       const self = localPlayer();
       const fx = self ? self.facingX : 0; const fz = self ? self.facingZ : 1;
       const rx = fz; const rz = -fx;
-      return { x: x * rx + z * fx, z: x * rz + z * fz, guard: keys.has('l') || keys.has(' ') };
+      return { x: x * rx + z * fx, z: x * rz + z * fz, guard: keys.has('l') || gamepadGuard };
     }
     window.addEventListener('keydown', (event) => {
       const key = event.key.toLowerCase();
@@ -583,7 +688,11 @@
       keys.add(key);
       if (key === 'j' || key === 'z') attack('light');
       if (key === 'k' || key === 'x') attack('heavy');
-      if (key === 'shift') send('transform');
+      if (key === 'u') attack('launcher');
+      if (key === 'i') attack('sweep');
+      if (key === 'r' || key === 'shift') send('transform');
+      if (key === ' ' && !event.repeat) send('evade');
+      if (key === 'q') cycleTarget();
       if (key === 'e') { send('finisher'); playSound(82, .24, 'sawtooth'); }
     });
     window.addEventListener('keyup', (event) => keys.delete(event.key.toLowerCase()));
@@ -592,9 +701,10 @@
       const action = button.dataset.action;
       button.addEventListener('pointerdown', (event) => {
         event.preventDefault(); button.setPointerCapture(event.pointerId);
-        if (action === 'light' || action === 'heavy') attack(action);
+        if (['light', 'heavy', 'launcher', 'sweep'].includes(action)) attack(action);
         if (action === 'transform') send('transform');
         if (action === 'finisher') { send('finisher'); playSound(82, .24, 'sawtooth'); }
+        if (action === 'evade') send('evade');
         if (action === 'guard') keys.add('l');
       });
       button.addEventListener('pointerup', () => { if (action === 'guard') keys.delete('l'); });
@@ -613,10 +723,24 @@
     stickBase.addEventListener('pointermove', (event) => { if (stick.active && stick.pointer === event.pointerId) updateStick(event); });
     function releaseStick() { stick.active = false; stick.pointer = null; stick.x = 0; stick.z = 0; stickKnob.style.transform = 'translate(0,0)'; }
     stickBase.addEventListener('pointerup', releaseStick); stickBase.addEventListener('pointercancel', releaseStick);
+    let gamepadStick = { x: 0, z: 0 }; let gamepadGuard = false; let gamepadButtons = [];
+    function pollGamepad() {
+      if (!navigator.getGamepads) return;
+      const pad = [...navigator.getGamepads()].find(Boolean);
+      if (!pad) { gamepadStick.x = 0; gamepadStick.z = 0; gamepadGuard = false; gamepadButtons = []; return; }
+      const axis = (value) => Math.abs(value) < .16 ? 0 : Math.sign(value) * (Math.abs(value) - .16) / .84;
+      gamepadStick.x = axis(pad.axes[0] || 0); gamepadStick.z = axis(pad.axes[1] || 0);
+      const down = (index) => !!pad.buttons[index] && (pad.buttons[index].pressed || pad.buttons[index].value > .55);
+      const actions = [[0, 'light'], [1, 'heavy'], [2, 'launcher'], [3, 'sweep'], [5, 'transform'], [6, 'evade'], [7, 'finisher']];
+      actions.forEach(([index, action]) => { if (down(index) && !gamepadButtons[index]) { if (action === 'transform') send('transform'); else if (action === 'evade') send('evade'); else if (action === 'finisher') send('finisher'); else attack(action); } });
+      gamepadGuard = down(4);
+      gamepadButtons = Array.from({ length: pad.buttons.length }, (_, index) => down(index));
+    }
     setInterval(() => {
       if (phase !== 'game' || (!offlineMode && (!socket || socket.readyState !== WebSocket.OPEN))) return;
       const now = performance.now();
-      if (now - lastInputAt < 75) return;
+      pollGamepad();
+      if (now - lastInputAt < 40) return;
       lastInputAt = now;
       send('input', localMove());
     }, 30);
@@ -624,13 +748,30 @@
     function updateHud() {
       const self = localPlayer();
       if (!self) return;
-      $('#timer').innerHTML = `${String(Math.floor(timeLeft / 60)).padStart(2, '0')}:${String(timeLeft % 60).padStart(2, '0')}<small>ARENA ROUND</small>`;
+      $('#timer').innerHTML = `${String(Math.floor(timeLeft / 60)).padStart(2, '0')}:${String(timeLeft % 60).padStart(2, '0')}<small>${offlineMode ? `DUEL · ROUND ${offlineRound} / 3` : 'FREE FOR ALL'}</small>`;
       $('#hudName').textContent = self.name;
       $('#hudForm').textContent = self.respawnAt ? 'Regrouping…' : (self.beast ? `${self.style.beast} Beast` : `${self.style.name} · Human`);
       $('#healthFill').style.width = `${Math.max(0, self.hp)}%`;
       $('#meterFill').style.width = `${Math.max(0, self.meter)}%`;
       $('#meterWrap').classList.toggle('is-beast', self.beast);
       $('#meterText').textContent = `${Math.round(self.meter)}% · ${self.beast ? 'Beast form active' : 'Shift at 35%'}`;
+      const candidates = players.filter((p) => p.id !== self.id && !p.respawnAt && p.hp > 0).sort((a, b) => Math.hypot(a.x - self.x, a.z - self.z) - Math.hypot(b.x - self.x, b.z - self.z));
+      const target = candidates.find((p) => p.id === self.targetId) || candidates[0];
+      const opponentPanel = $('#opponentHud');
+      opponentPanel.classList.toggle('hidden', !target);
+      $('#targetSwitch').classList.toggle('hidden', candidates.length < 2);
+      $('#targetHelp').textContent = candidates.length > 1 ? 'Q target' : 'auto lock';
+      if (target) {
+        $('#opponentName').textContent = target.name;
+        $('#opponentForm').textContent = `${target.id === self.targetId ? 'Locked · ' : 'Auto · '}${target.beast ? `${target.style.beast} Beast` : `${target.style.name} · Human`}`;
+        $('#targetSwitch').textContent = `Target · ${target.name.slice(0, 10)} · Q`;
+        $('#opponentHealthFill').style.width = `${Math.max(0, target.hp)}%`;
+        $('#opponentMeterFill').style.width = `${Math.max(0, target.meter)}%`;
+        $('#opponentMeterWrap').classList.toggle('is-beast', target.beast);
+        $('#opponentMeterText').textContent = `${Math.round(target.meter)}% · ${target.beast ? 'BEAST FORM' : 'BEAST METER'}`;
+        $('#opponentScore').textContent = offlineMode ? `${target.roundWins || 0} / 2 ROUNDS` : `${target.score} KOs`;
+      }
+      $('#scoreList').style.display = offlineMode ? 'none' : '';
       const visible = players.slice().sort((a, b) => b.score - a.score).slice(0, 6);
       $('#scoreList').innerHTML = '';
       for (const player of visible) {
@@ -645,7 +786,8 @@
       if (callout && callout !== lastCallout) { shake = callout.includes('FINISH') || callout.includes('KO') ? 9 : 3; }
       lastCallout = callout;
       const msg = $('#centerMessage');
-      if (self.respawnAt) { msg.innerHTML = 'KNOCKED OUT<small>Back on your feet soon</small>'; msg.classList.remove('hidden'); }
+      if (offlineMode && offlineRoundEndsAt) { msg.classList.remove('hidden'); }
+      else if (self.respawnAt) { msg.innerHTML = 'KNOCKED OUT<small>Back on your feet soon</small>'; msg.classList.remove('hidden'); }
       else msg.classList.add('hidden');
     }
     function showResults() {
@@ -653,7 +795,7 @@
       $('#resultTitle').textContent = winner.length > 1 ? 'Draw' : 'Victory';
       $('#resultWinner').textContent = winner.length ? (winner.length > 1 ? 'A shared win for ' : '') + winner.map((p) => p.name).join(' & ') : 'The arena stands silent.';
       const rows = players.slice().sort((a, b) => b.score - a.score || b.hp - a.hp);
-      $('#resultScores').innerHTML = rows.map((p) => `<div class="result-row"><span>${escapeHtml(p.name)}</span><strong>${p.score} KO${p.score === 1 ? '' : 's'}</strong></div>`).join('');
+      $('#resultScores').innerHTML = rows.map((p) => `<div class="result-row"><span>${escapeHtml(p.name)}</span><strong>${offlineMode ? `${p.roundWins || 0} ROUND WINS` : `${p.score} KO${p.score === 1 ? '' : 's'}`}</strong></div>`).join('');
       const rematch = $('#rematch'); rematch.disabled = selfId !== hostId; rematch.textContent = selfId === hostId ? 'Run it back' : 'Waiting for host';
       $('#resultPanel').classList.remove('hidden');
     }
@@ -883,17 +1025,22 @@
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
       const scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x111520);
-      scene.fog = new THREE.FogExp2(0x111520, 0.027);
+      scene.background = new THREE.Color(0x0c111c);
+      scene.fog = new THREE.FogExp2(0x0c111c, 0.019);
       const world = new THREE.Group(); scene.add(world);
-      const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.08, 160);
+      const camera = new THREE.PerspectiveCamera(49, innerWidth / innerHeight, 0.08, 160);
       camera.position.set(0, 3, 8);
       const clock = new THREE.Clock();
       const fighters = new Map();
       const smoothed = new Map();
       const impacts = [];
       const previousHp = new Map();
+      let cameraKick = 0; let cameraKickUntil = 0; let lastCameraMessage = '';
       const material = (color, roughness = 0.72, metalness = 0.03) => new THREE.MeshStandardMaterial({ color, roughness, metalness, flatShading: true });
+      const toonRamp = new THREE.DataTexture(new Uint8Array([34, 34, 48, 255, 88, 82, 91, 255, 166, 155, 148, 255, 239, 225, 204, 255]), 4, 1, THREE.RGBAFormat);
+      toonRamp.magFilter = THREE.NearestFilter; toonRamp.minFilter = THREE.NearestFilter; toonRamp.generateMipmaps = false; toonRamp.needsUpdate = true;
+      const fighterMaterial = (color) => new THREE.MeshToonMaterial({ color, gradientMap: toonRamp });
+      const inkMaterial = new THREE.MeshBasicMaterial({ color: 0x111119, side: THREE.BackSide, toneMapped: false });
       const sphere = new THREE.SphereGeometry(1, 14, 10);
       const smallSphere = new THREE.SphereGeometry(1, 10, 8);
       const box = new THREE.BoxGeometry(1, 1, 1);
@@ -912,6 +1059,8 @@
       moonLight.shadow.camera.left = -13; moonLight.shadow.camera.right = 13; moonLight.shadow.camera.top = 13; moonLight.shadow.camera.bottom = -13; moonLight.shadow.bias = -.0005;
       scene.add(moonLight);
       const warmLight = new THREE.PointLight(0xff744a, 36, 18, 1.8); warmLight.position.set(0, 5.2, 1.5); scene.add(warmLight);
+      const rimLight = new THREE.DirectionalLight(0xff7653, 2.15); rimLight.position.set(5, 4, -7); scene.add(rimLight);
+      const fillLight = new THREE.DirectionalLight(0x66c7ef, 1.2); fillLight.position.set(-6, 3, 4); scene.add(fillLight);
 
       function addMesh(parent, geometry, mat, pos, scale, cast = true) {
         const mesh = new THREE.Mesh(geometry, mat); mesh.position.set(...pos); mesh.scale.set(...scale); mesh.castShadow = cast; mesh.receiveShadow = true; parent.add(mesh); return mesh;
@@ -984,24 +1133,30 @@
       function makeFighter(player) {
         const root = new THREE.Group(); world.add(root);
         const style = player.style || {};
-        const accent = material(player.color || style.color || '#ed593c', .58, .12);
-        const accentDark = material(style.id === 'storm-tiger' ? 0x31201b : 0x35232a, .7);
-        const skin = material(0xd4a277, .84);
-        const fur = material(player.color || style.color || '#b9543b', .75);
-        const furLight = material(0xd7b284, .88);
-        const pants = material(0x303544, .78);
-        const cloth = material(0xe6d0ad, .68);
-        const glove = material(0x43343a, .63);
+        const accent = fighterMaterial(player.color || style.color || '#ed593c');
+        const accentDark = fighterMaterial(style.id === 'storm-tiger' ? 0x31201b : 0x35232a);
+        const skin = fighterMaterial(0xd4a277);
+        const fur = fighterMaterial(player.color || style.color || '#b9543b');
+        const furLight = fighterMaterial(0xd7b284);
+        const pants = fighterMaterial(0x303544);
+        const cloth = fighterMaterial(0xe6d0ad);
+        const glove = fighterMaterial(0x43343a);
         const eye = new THREE.MeshBasicMaterial({ color: 0xffd37f });
+        const eyeWhite = new THREE.MeshBasicMaterial({ color: 0xffead0 });
+        const inkGeometries = [];
         const group = new THREE.Group(); root.add(group);
         const pelvis = addMesh(group, sphere, pants, [0, .66, 0], [.37, .31, .32]);
         const torso = addMesh(group, sphere, accent, [0, 1.19, 0], [.48, .59, .34]);
         addMesh(group, sphere, cloth, [0, .95, .285], [.24, .35, .075]);
         addMesh(group, box, goldMat, [0, .78, .02], [.79, .105, .69]);
         addMesh(group, box, accentDark, [0, .77, .39], [.31, .13, .055]);
+        addMesh(group, new THREE.TorusGeometry(.39, .055, 7, 24), goldMat, [0, .78, .02], [1, 1, .84]);
+        const collar = addMesh(group, new THREE.TorusGeometry(.29, .065, 7, 18), cloth, [0, 1.52, 0], [1, .74, .85]); collar.rotation.x = Math.PI / 2;
         const chestMark = addMesh(group, coneGeometry, goldMat, [.09, 1.35, .29], [.16, .22, .12]); chestMark.rotation.z = Math.PI;
         const shoulderL = addMesh(group, sphere, accentDark, [-.43, 1.44, 0], [.23, .22, .34]);
         const shoulderR = addMesh(group, sphere, accentDark, [.43, 1.44, 0], [.23, .22, .34]);
+        addMesh(group, box, goldMat, [-.43, 1.46, .245], [.28, .055, .035], false);
+        addMesh(group, box, goldMat, [.43, 1.46, .245], [.28, .055, .035], false);
         const armL = limb(group, -.49, 1.39, new THREE.CylinderGeometry(.16, .115, .5, 9), accent, [.98, 1, .98]);
         const armR = limb(group, .49, 1.39, new THREE.CylinderGeometry(.16, .115, .5, 9), accent, [.98, 1, .98]);
         const fistL = addMesh(armL, sphere, glove, [0, -.52, .045], [.17, .18, .18]);
@@ -1015,13 +1170,31 @@
         addMesh(head, sphere, skin, [0, 0, .025], [.29, .34, .26]);
         addMesh(head, sphere, accentDark, [0, .17, -.015], [.31, .18, .28]);
         addMesh(head, sphere, skin, [0, -.13, .14], [.19, .12, .16]);
-        for (const x of [-.115, .115]) addMesh(head, smallSphere, eye, [x, .015, .241], [.045, .027, .018], false);
+        const hairTips = [];
+        for (const [x, y, z, tilt] of [[-.2, .22, .02, -.34], [-.1, .3, .02, -.18], [0, .32, .01, 0], [.1, .3, .02, .18], [.2, .22, .02, .34]]) {
+          const spike = addMesh(head, coneGeometry, accentDark, [x, y, z], [.82, 1.08, .86]); spike.rotation.z = tilt; hairTips.push(spike);
+        }
+        addMesh(head, box, goldMat, [0, .075, .258], [.42, .045, .038], false);
+        const pupilMat = new THREE.MeshBasicMaterial({ color: 0x17131a });
+        for (const x of [-.115, .115]) {
+          addMesh(head, smallSphere, eyeWhite, [x, .015, .242], [.057, .035, .02], false);
+          addMesh(head, smallSphere, eye, [x, .013, .26], [.026, .029, .012], false);
+          addMesh(head, smallSphere, pupilMat, [x, .013, .269], [.012, .023, .01], false);
+        }
+        for (const side of [-1, 1]) { const brow = addMesh(head, box, accentDark, [side * .115, .085, .25], [.14, .035, .035], false); brow.rotation.z = side * -.16; }
+        addMesh(head, box, accentDark, [0, -.195, .267], [.115, .018, .02], false);
         const muzzle = addMesh(head, sphere, furLight, [0, -.07, .265], [.2, .13, .14]);
         const nose = addMesh(head, smallSphere, accentDark, [0, -.005, .389], [.065, .045, .04]);
         const ears = [];
         for (const x of [-.19, .19]) { const ear = addMesh(head, coneGeometry, fur, [x, .27, -.01], [.8, 1.05, .72]); ear.rotation.z = x < 0 ? .22 : -.22; ears.push(ear); }
         const animalEyes = [];
         for (const x of [-.115, .115]) animalEyes.push(addMesh(head, smallSphere, eye, [x, .035, .245], [.05, .032, .02], false));
+        const ruff = [];
+        for (let i = 0; i < 7; i += 1) {
+          const angle = i * Math.PI * 2 / 7;
+          const tuft = addMesh(group, coneGeometry, fur, [Math.sin(angle) * .31, 1.48, Math.cos(angle) * .24], [.92, .85, .82], false);
+          tuft.rotation.z = Math.sin(angle) * .55; tuft.rotation.x = Math.cos(angle) * -.36; tuft.visible = false; ruff.push(tuft);
+        }
         const tusks = [];
         for (const x of [-.19, .19]) { const tusk = addMesh(head, coneGeometry, furLight, [x, -.16, .23], [.65, .72, .65]); tusk.rotation.z = x < 0 ? -.42 : .42; tusks.push(tusk); }
         const stripes = [];
@@ -1040,7 +1213,18 @@
         addMesh(barRoot, box, blackMat, [0, 0, 0], [1.06, .105, .05], false);
         const bar = addMesh(barRoot, box, accent, [0, 0, .034], [.98, .055, .025], false);
         const underBar = addMesh(barRoot, box, material(0x1a1720), [0, -.11, 0], [.7, .025, .025], false);
-        return { root, group, armL, armR, legL, legR, head, ears, animalEyes, tusks, stripes, claws, tail, tailBase, muzzle, nose, torso, pelvis, shoulderL, shoulderR, fistL, fistR, barRoot, bar, underBar, accent, style, species: style.beast || 'Wolf', previousAction: '', hitPulse: 0 };
+        const auraMaterial = new THREE.MeshBasicMaterial({ color: player.color || style.color || 0xed593c, transparent: true, opacity: .78, depthWrite: false });
+        const aura = new THREE.Group(); aura.position.y = .09; group.add(aura);
+        for (const radius of [.65, .9]) { const ring = new THREE.Mesh(new THREE.TorusGeometry(radius, .018, 6, 48), auraMaterial); ring.rotation.x = Math.PI / 2; aura.add(ring); }
+        aura.visible = false;
+        const outlinedMeshes = [];
+        group.traverse((node) => { if (node.isMesh && node.geometry !== smallSphere && node.parent !== barRoot && node.geometry.attributes.position.count > 70) outlinedMeshes.push(node); });
+        for (const node of outlinedMeshes) {
+          const geometry = node.geometry.clone(); const positions = geometry.attributes.position; const normals = geometry.attributes.normal;
+          if (normals) { for (let i = 0; i < positions.count; i += 1) positions.setXYZ(i, positions.getX(i) + normals.getX(i) * .024, positions.getY(i) + normals.getY(i) * .024, positions.getZ(i) + normals.getZ(i) * .024); positions.needsUpdate = true; geometry.computeVertexNormals(); }
+          const outline = new THREE.Mesh(geometry, inkMaterial); outline.name = 'ink-edge'; outline.renderOrder = 1; node.add(outline); node.renderOrder = 2; inkGeometries.push(geometry);
+        }
+        return { root, group, armL, armR, legL, legR, head, ears, animalEyes, tusks, stripes, claws, tail, tailBase, muzzle, nose, ruff, aura, torso, pelvis, shoulderL, shoulderR, fistL, fistR, barRoot, bar, underBar, accent, style, hairTips, inkGeometries, species: style.beast || 'Wolf', previousAction: '', hitPulse: 0 };
       }
       function makeImpact(x, z, color) {
         const group = new THREE.Group(); group.position.set(x, 1.1, z); world.add(group);
@@ -1064,6 +1248,8 @@
           const model = fighters.get(player.id); const p = model.group; const alive = !player.respawnAt && player.hp > 0;
           p.visible = alive;
           if (!alive) continue;
+          const airStart = (player.airUntil || 0) - 760;
+          const airPhase = player.airUntil > now ? Math.max(0, Math.min(1, (now - airStart) / 760)) : 0;
           p.position.set(point.x, 0, point.z);
           const fx = player.facingX || 0; const fz = player.facingZ || 1;
           p.rotation.y = Math.atan2(fx, fz);
@@ -1072,10 +1258,12 @@
           model.stripes.forEach((part) => { part.visible = beast && model.species === 'Tiger'; }); model.tail.visible = beast;
           model.claws.forEach((part) => { part.visible = beast; });
           model.muzzle.visible = beast; model.nose.visible = beast;
+          model.ruff.forEach((part) => { part.visible = beast; }); model.aura.visible = beast;
+          model.aura.rotation.y = now * .0007; model.aura.children.forEach((ring, index) => { ring.scale.setScalar(1 + Math.sin(now * .006 + index) * .045); });
           const speed = Math.hypot(player.vx || 0, player.vz || 0); const moving = Math.min(1, speed / 2.5); const stride = now * (.008 + moving * .006);
           const phase = player.animAt ? Math.max(0, Math.min(1, (now - player.animAt) / Math.max(1, (player.animUntil || now + 1) - player.animAt))) : 0;
           model.armL.rotation.set(0, 0, 0); model.armR.rotation.set(0, 0, 0); model.legL.rotation.x = Math.sin(stride) * .55 * moving; model.legR.rotation.x = -Math.sin(stride) * .55 * moving;
-          model.group.position.y = Math.abs(Math.sin(stride * 2)) * .055 * moving;
+          model.group.position.y = airPhase ? Math.sin(airPhase * Math.PI) * .98 : Math.abs(Math.sin(stride * 2)) * .045 * moving;
           model.group.rotation.x = 0; model.group.rotation.z = 0;
           model.tail.rotation.x = Math.sin(now * .004 + point.x) * .2; model.tail.rotation.y = Math.sin(now * .003 + point.z) * .28;
           model.head.rotation.x = beast ? -.06 : 0;
@@ -1086,10 +1274,13 @@
           } else if (action === 'heavy' || action === 'beastHeavy') {
             const swing = phase < .35 ? phase / .35 * 1.05 : phase < .65 ? 1.05 - (phase - .35) / .3 * 2.65 : -1.6 + (phase - .65) / .35 * 1.6;
             model.armR.rotation.x = swing; model.armL.rotation.x = -.52; model.group.rotation.z = phase > .32 && phase < .7 ? -.23 : 0;
-          } else if (action === 'finisher') { model.armL.rotation.x = -.92; model.armR.rotation.x = -.98; model.armL.rotation.z = .46; model.armR.rotation.z = -.46; model.group.scale.setScalar(1 + Math.sin(phase * Math.PI) * .12); }
+          } else if (action === 'launcher') { model.armR.rotation.x = -.28 - Math.sin(phase * Math.PI) * 1.75; model.armL.rotation.x = -.35; model.group.rotation.x = -.18; }
+          else if (action === 'sweep') { model.legR.rotation.x = -.2 - Math.sin(phase * Math.PI) * 1.85; model.legL.rotation.x = .42; model.group.rotation.x = .17; model.armL.rotation.x = -.55; model.armR.rotation.x = -.42; }
+          else if (action === 'evade') { model.group.rotation.z = Math.sin(phase * Math.PI) * .32; model.group.rotation.y = Math.sin(phase * Math.PI) * .12; model.head.rotation.x = -.12; }
+          else if (action === 'finisher' || action === 'drive') { model.armL.rotation.x = -.92; model.armR.rotation.x = -.98; model.armL.rotation.z = .46; model.armR.rotation.z = -.46; model.group.scale.setScalar(1 + Math.sin(phase * Math.PI) * .12); }
           else if (action === 'hit') { model.group.rotation.x = .36; model.armL.rotation.x = .55; model.armR.rotation.x = .42; model.group.position.y = .02; }
-          else model.group.scale.setScalar(beast ? 1.06 : 1);
-          if (action !== 'finisher') model.group.scale.setScalar(beast ? 1.06 : 1);
+          else model.group.scale.setScalar(beast ? 1.12 : 1);
+          if (action !== 'finisher' && action !== 'drive') model.group.scale.setScalar(beast ? 1.12 : 1);
           model.barRoot.quaternion.copy(p.quaternion).invert().multiply(world.quaternion.clone().invert()).multiply(camera.quaternion);
           model.bar.scale.x = .98 * Math.max(0, Math.min(1, player.hp / 100)); model.bar.position.x = -.49 + model.bar.scale.x / 2;
           model.bar.material = model.accent;
@@ -1097,16 +1288,19 @@
           const oldHp = previousHp.get(player.id); if (oldHp !== undefined && player.hp < oldHp - 1) makeImpact(point.x, point.z, player.color || '#ed593c');
           previousHp.set(player.id, player.hp);
         }
-        for (const [id, model] of fighters) if (!state.some((player) => player.id === id)) { world.remove(model.root); fighters.delete(id); smoothed.delete(id); previousHp.delete(id); }
+        for (const [id, model] of fighters) if (!state.some((player) => player.id === id)) { world.remove(model.root); model.inkGeometries.forEach((geometry) => geometry.dispose()); fighters.delete(id); smoothed.delete(id); previousHp.delete(id); }
         const self = state.find((player) => player.id === selfId) || state[0];
         if (self) {
           const point = smoothed.get(self.id); const fx = self.facingX || 0; const fz = self.facingZ || 1;
+          if (self.message && self.message !== lastCameraMessage) { cameraKick = /BREAKER|DRIVE|KO|PUNISH/.test(self.message) ? .14 : .045; cameraKickUntil = now + 125; }
+          lastCameraMessage = self.message || '';
           const yaw = Math.atan2(fx, fz);
           // Rotate and follow the whole arena around the locked target. Camera-space WASD stays intuitive.
           world.rotation.y = -yaw;
           world.position.set(-point.x * fz + point.z * fx, 0, -point.x * fx - point.z * fz);
-          camera.position.set(.78, 2.7, -4.35);
-          camera.lookAt(0, .92, 2.75);
+          const kick = now < cameraKickUntil ? Math.sin((cameraKickUntil - now) / 125 * Math.PI) * cameraKick : 0;
+          camera.position.set(.62 + kick, 2.82 + kick * .45, -3.85);
+          camera.lookAt(0, 1.05, 3.05);
         }
         for (let i = impacts.length - 1; i >= 0; i -= 1) {
           const fx = impacts[i]; fx.life -= dt; const t = Math.max(0, fx.life / .27);
