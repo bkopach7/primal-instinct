@@ -1301,12 +1301,14 @@
           model.aura.rotation.y = now * .0007; model.aura.children.forEach((ring, index) => { ring.scale.setScalar(1 + Math.sin(now * .006 + index) * .045); });
           const speed = Math.hypot(player.vx || 0, player.vz || 0); const moving = Math.min(1, speed / 2.5); const stride = now * (.008 + moving * .006);
           const phase = player.animAt ? Math.max(0, Math.min(1, (now - player.animAt) / Math.max(1, (player.animUntil || now + 1) - player.animAt))) : 0;
-          model.armL.rotation.set(0, 0, 0); model.armR.rotation.set(0, 0, 0); model.legL.rotation.x = Math.sin(stride) * .55 * moving; model.legR.rotation.x = -Math.sin(stride) * .55 * moving;
-          model.group.position.y = airPhase ? Math.sin(airPhase * Math.PI) * .98 : Math.abs(Math.sin(stride * 2)) * .045 * moving;
+          // A compact, raised guard gives every fighter a readable martial-arts idle.
+          model.armL.rotation.set(-1.02, 0, .42); model.armR.rotation.set(-1.1, 0, -.46);
+          model.legL.rotation.x = Math.sin(stride) * .55 * moving; model.legR.rotation.x = -Math.sin(stride) * .55 * moving;
+          model.group.position.y = airPhase ? Math.sin(airPhase * Math.PI) * .98 : Math.abs(Math.sin(stride * 2)) * .045 * moving + Math.sin(now * .003 + point.x) * .012;
           model.group.rotation.x = 0; model.group.rotation.z = 0;
           model.tail.rotation.x = Math.sin(now * .004 + point.x) * .2; model.tail.rotation.y = Math.sin(now * .003 + point.z) * .28;
           model.ribbonL.rotation.x = Math.sin(now * .006 + point.x) * .12; model.ribbonR.rotation.x = -Math.sin(now * .006 + point.z) * .12;
-          model.head.rotation.x = beast ? -.06 : 0;
+          model.head.rotation.x = (beast ? -.06 : 0) + Math.sin(now * .003 + point.z) * .018;
           if (player.guard) { model.armL.rotation.x = -1.05; model.armR.rotation.x = -1.12; model.armL.rotation.z = .5; model.armR.rotation.z = -.5; model.group.position.y -= .08; }
           if (action === 'light' || action === 'beastLight') {
             const swing = phase < .28 ? phase / .28 * .46 : phase < .62 ? .46 - (phase - .28) / .34 * 2.05 : -1.59 + (phase - .62) / .38 * 1.59;
